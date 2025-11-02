@@ -1,4 +1,4 @@
-package br.com.fiap.clinic.notification;
+package br.com.fiap.clinic.notification.controller.rest;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

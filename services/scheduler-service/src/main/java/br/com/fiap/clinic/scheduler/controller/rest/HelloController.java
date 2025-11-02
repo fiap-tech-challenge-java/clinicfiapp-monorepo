@@ -1,4 +1,4 @@
-package br.com.fiap.clinic.scheduler;
+package br.com.fiap.clinic.scheduler.controller.rest;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,4 +11,3 @@ public class HelloController {
         return "hello scheduler service";
     }
 }
-
