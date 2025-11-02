@@ -1,0 +1,35 @@
+# services/scheduler-service/Dockerfile
+
+# --- Estágio 1: Build (Compila o Java) ---
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+
+# 1. Copia todos os POMs para cachear a camada de dependências
+COPY pom.xml .
+COPY libs/outbox-relay/pom.xml ./libs/outbox-relay/
+COPY services/scheduler-service/pom.xml ./services/scheduler-service/
+COPY services/notification-service/pom.xml ./services/notification-service/
+COPY services/history-service/pom.xml ./services/history-service/
+
+# 2. Baixa as dependências (Maven 3.x prefere 'verify' para resolver)
+RUN mvn verify --fail-never
+
+# 3. Copia todo o código-fonte
+COPY libs/ ./libs/
+COPY services/ ./services/
+
+# 4. Constrói o 'scheduler-service' E suas dependências (como 'outbox-relay')
+# -pl ... foca no módulo
+# -am ... constrói também as dependências
+RUN mvn clean package -DskipTests -pl services/scheduler-service -am
+
+# --- Estágio 2: Run (Executa o JAR) ---
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+# 1. Copia o JAR construído do estágio anterior
+COPY --from=build /app/services/scheduler-service/target/scheduler-service-*.jar app.jar
+
+EXPOSE 8081
+# Comando para rodar a aplicação
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

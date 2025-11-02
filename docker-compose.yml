@@ -1,19 +1,16 @@
-version: '3.8'
-
 services:
-  # 1. PostgreSQL (Banco de Dados Único)
   postgres:
-    image: postgres:17-alpine  # Atualizado para a versão 17
+    image: postgres:17-alpine
     container_name: clinicfiap-postgres
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgrespass
+      - POSTGRES_USER=clinicfiap
+      - POSTGRES_PASSWORD=clinicfiap
+      - POSTGRES_DB=scheduler_db,notification_db,history_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # 2. ZooKeeper (Necessário para o Kafka)
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: clinicfiap-zookeeper
@@ -23,23 +20,86 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
-  # 3. Kafka (Nosso Broker de Mensagens)
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: clinicfiap-kafka
     ports:
       - "9092:9092"
-      - "9094:9094"
     depends_on:
       - zookeeper
+    restart: on-failure
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9094,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9093,EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: clinicfiap-kafka-ui
+    ports:
+      - "8080:8080"
+    restart: on-failure
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+    depends_on:
+      - kafka
+      - zookeeper
+
+  cache-redis:
+    image: redis:alpine
+    container_name: clinicfiap-redis
+    ports:
+      - "6379:6379"
+    restart: on-failure
+
+  scheduler-service:
+    build:
+      context: .
+      dockerfile: services/scheduler-service/Dockerfile
+    container_name: clinicfiap-scheduler-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/scheduler_db
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9093
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: clinicfiap-notification-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/notification_db
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9093
+
+  history-service:
+    build:
+      context: .
+      dockerfile: services/history-service/Dockerfile
+    container_name: clinicfiap-history-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/history_db
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9093
 
 volumes:
   postgres_data:
