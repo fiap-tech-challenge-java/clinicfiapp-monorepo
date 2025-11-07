@@ -1,11 +1,3 @@
-Absolutamente. Excelente ideia.
-
-Ter um `README.md` claro é a ferramenta de onboarding mais importante para a equipe, especialmente agora que a fundação está estável. Isso garante que todos, incluindo os professores, entendam a arquitetura e saibam como executar o projeto em segundos.
-
-Aqui está uma proposta de `README.md` para a raiz do projeto. Ele documenta o que fizemos, por que fizemos, e (o mais importante) como rodar.
-
------
-
 # ClinicFiapApp - Monorepo (Tech Challenge - Fase 3)
 
 Este repositório contém o backend do projeto **ClinicFiapApp**, a solução para o Tech Challenge - Fase 3 do curso de Arquitetura e Desenvolvimento Java.
