@@ -28,7 +28,7 @@ public class OutboxRelayService {
     // Define um tópico padrão ou deriva do aggregateType
     private static final String DEFAULT_TOPIC = "appointment_events";
 
-    @Scheduled(fixedDelayString = "${outbox.poll.delay:5000}") // Roda a cada 5 segundos
+    @Scheduled(initialDelayString = "15000", fixedDelayString = "${outbox.poll.delay:5000}") // Roda a cada 5 segundos
     @Transactional
     public void pollAndRelayEvents() {
         log.debug("Iniciando poll para eventos do Outbox...");

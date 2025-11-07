@@ -1,19 +1,20 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: clinicfiap-postgres
+    container_name: clinicfiapp-postgres
     ports:
-      - "5432:5432"
+      - "5438:5432"
+    restart: on-failure
     environment:
-      - POSTGRES_USER=clinicfiap
-      - POSTGRES_PASSWORD=clinicfiap
-      - POSTGRES_DB=scheduler_db,notification_db,history_db
+      - POSTGRES_USER=clinicfiapp
+      - POSTGRES_PASSWORD=clinicfiapppass
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
-    container_name: clinicfiap-zookeeper
+    container_name: clinicfiapp-zookeeper
     ports:
       - "2181:2181"
     environment:
@@ -22,7 +23,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: clinicfiap-kafka
+    container_name: clinicfiapp-kafka
     ports:
       - "9092:9092"
     depends_on:
@@ -41,7 +42,7 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: clinicfiap-kafka-ui
+    container_name: clinicfiapp-kafka-ui
     ports:
       - "8080:8080"
     restart: on-failure
@@ -54,7 +55,7 @@ services:
 
   cache-redis:
     image: redis:alpine
-    container_name: clinicfiap-redis
+    container_name: clinicfiapp-redis
     ports:
       - "6379:6379"
     restart: on-failure
@@ -63,9 +64,10 @@ services:
     build:
       context: .
       dockerfile: services/scheduler-service/Dockerfile
-    container_name: clinicfiap-scheduler-service
+    container_name: clinicfiapp-scheduler-service
     ports:
       - "8081:8081"
+    restart: on-failure
     depends_on:
       - postgres
       - kafka
@@ -77,9 +79,10 @@ services:
     build:
       context: .
       dockerfile: services/notification-service/Dockerfile
-    container_name: clinicfiap-notification-service
+    container_name: clinicfiapp-notification-service
     ports:
       - "8082:8082"
+    restart: on-failure
     depends_on:
       - postgres
       - kafka
@@ -91,9 +94,10 @@ services:
     build:
       context: .
       dockerfile: services/history-service/Dockerfile
-    container_name: clinicfiap-history-service
+    container_name: clinicfiapp-history-service
     ports:
       - "8083:8083"
+    restart: on-failure
     depends_on:
       - postgres
       - kafka
