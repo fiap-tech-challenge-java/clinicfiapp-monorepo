@@ -9,12 +9,12 @@ import lombok.Setter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "doctors")
+@Table(name = "nurses")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Doctor {
+public class Nurse {
 
     @Id
     @Column(name = "user_id")
@@ -24,12 +24,6 @@ public class Doctor {
     @MapsId
     @JoinColumn(name = "user_id")
     private User user;
-
-    @Column(nullable = false, unique = true)
-    private String crm;
-
-    @Column(nullable = false)
-    private String specialty;
 
     @Column(name = "is_active")
     private boolean isActive = true;
