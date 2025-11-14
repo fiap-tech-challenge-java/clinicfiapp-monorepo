@@ -2,6 +2,7 @@ package br.com.fiap.clinic.scheduler.config;
 
 import br.com.fiap.clinic.scheduler.config.security.AuthorizationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +27,9 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     private final AuthorizationService authorizationService;
+    
+    @Value("${spring.graphql.graphiql.enabled:false}")
+    private boolean graphiqlEnabled;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -34,11 +38,14 @@ public class SecurityConfig {
 
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/graphiql", "/actuator/health").permitAll()
+                .authorizeHttpRequests(auth -> {
+                    if (graphiqlEnabled) {
+                        auth.requestMatchers("/graphiql").permitAll();
+                    }
+                    auth.requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/graphql").authenticated()
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated();
+                })
 
                 .httpBasic(withDefaults());
 
