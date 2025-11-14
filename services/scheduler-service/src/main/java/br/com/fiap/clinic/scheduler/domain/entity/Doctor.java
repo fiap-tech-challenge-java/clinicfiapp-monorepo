@@ -2,28 +2,19 @@ package br.com.fiap.clinic.scheduler.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "doctors")
-@Getter
-@Setter
+@PrimaryKeyJoinColumn(name = "user_id")
+@DiscriminatorValue("doctor")
+@Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Doctor {
-
-    @Id
-    @Column(name = "user_id")
-    private UUID userId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "user_id")
-    private User user;
+public class Doctor extends User {
 
     @Column(nullable = false, unique = true)
     private String crm;
@@ -32,5 +23,5 @@ public class Doctor {
     private String specialty;
 
     @Column(name = "is_active")
-    private boolean isActive = true;
+    private Boolean isActive = true;
 }
