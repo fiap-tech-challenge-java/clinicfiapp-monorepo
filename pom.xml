@@ -39,7 +39,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
 		<scheduler-service.version>0.0.1-SNAPSHOT</scheduler-service.version>
-		<notification-service.version>0.0.1-SNAPSHOT</notification-service.version>
+		<notificationEntity-service.version>0.0.1-SNAPSHOT</notificationEntity-service.version>
 		<history-service.version>0.0.1-SNAPSHOT</history-service.version>
 		<outbox-relay.version>0.0.1-SNAPSHOT</outbox-relay.version>
 	</properties>

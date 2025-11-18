@@ -8,7 +8,7 @@ WORKDIR /app
 COPY pom.xml .
 COPY libs/outbox-relay/pom.xml ./libs/outbox-relay/
 COPY services/scheduler-service/pom.xml ./services/scheduler-service/
-COPY services/notification-service/pom.xml ./services/notification-service/
+COPY services/notificationEntity-service/pom.xml ./services/notificationEntity-service/
 COPY services/history-service/pom.xml ./services/history-service/
 
 # 2. Baixa as dependências (Maven 3.x prefere 'verify' para resolver)

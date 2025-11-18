@@ -1,9 +1,15 @@
 package br.com.fiap.clinic.notification.dto;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 public record AppointmentEvent(
-        Long appointmentId,
+        UUID appointmentId,
+        UUID patientId,
+        String patientName,
         String patientEmail,
-        String date,
-        String time
+        String doctorName,
+        String doctorSpecialty,
+        LocalDateTime appointmentDate
 ) {
 }

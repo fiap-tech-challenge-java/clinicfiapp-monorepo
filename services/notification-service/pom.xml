@@ -11,9 +11,9 @@
 	</parent>
 
 	<groupId>br.com.fiap.clinic.services</groupId>
-	<artifactId>notification-service</artifactId>
+	<artifactId>notificationEntity-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>notification-service</name>
+	<name>notificationEntity-service</name>
 	<description>Service for handling async notifications</description>
 	<url/>
 	<licenses>
