@@ -5,6 +5,7 @@ import br.com.fiap.clinic.history.domain.repository.ProjectedAppointmentHistoryR
 import br.com.fiap.clinic.history.exception.HistoryAccessDeniedException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -124,10 +125,12 @@ public class HistoryProjectionService {
      *
      * @param authentication objeto de autenticação
      * @return conjunto de roles
-     * @throws HistoryAccessDeniedException se não autenticado
+     * @throws HistoryAccessDeniedException se não autenticado ou usuário anônimo
      */
     private Set<String> getRoles(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
             throw new HistoryAccessDeniedException("Usuário não autenticado.");
         }
         return authentication.getAuthorities().stream()
