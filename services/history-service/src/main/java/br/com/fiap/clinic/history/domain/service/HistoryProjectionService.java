@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,27 +21,30 @@ public class HistoryProjectionService {
     private final ProjectedAppointmentHistoryRepository historyRepository;
 
     public List<ProjectedAppointmentHistory> getHistoryForPatient(Long patientId) {
+        if (patientId == null) {
+            throw new IllegalArgumentException("O ID do paciente não pode ser nulo.");
+        }
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
+        if (roles.contains("ROLE_MEDICO") || roles.contains("ROLE_ENFERMEIRO")) {
+            return historyRepository.findByPatientId(patientId);
+        }
+
         if (roles.contains("ROLE_PACIENTE")) {
             Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
 
-            if (!patientId.equals(authenticatedPatientId)) {
+            if (!Objects.equals(patientId, authenticatedPatientId)) {
                 throw new HistoryAccessDeniedException("Paciente só pode visualizar o próprio histórico.");
             }
 
             return historyRepository.findByPatientId(patientId);
         }
 
-        if (roles.contains("ROLE_MEDICO") || roles.contains("ROLE_ENFERMEIRO")) {
-            return historyRepository.findByPatientId(patientId);
-        }
-
         throw new HistoryAccessDeniedException("Acesso negado ao histórico de consultas.");
-
     }
+
 
     private Set<String> getRoles(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
