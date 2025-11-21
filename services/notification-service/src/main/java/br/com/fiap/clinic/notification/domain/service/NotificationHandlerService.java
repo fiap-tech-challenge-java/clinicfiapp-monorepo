@@ -12,8 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-@Service
 @Slf4j
+@Service
 public class NotificationHandlerService {
 
     private final NotificationRepository notificationRepository;
