@@ -19,7 +19,7 @@ Adotamos uma arquitetura de **Monorepo** gerenciada pelo Maven, contendo múltip
       * Lógica de Agendamento de Consultas.
       * API principal (GraphQL).
       * Produção de eventos para o Kafka (usando o Padrão Outbox).
-  * `services/notificationEntity-service/`: Microsserviço consumidor do Kafka, responsável por processar eventos e enviar notificações (ex: lembretes de consulta).
+  * `services/notification-service/`: Microsserviço consumidor do Kafka, responsável por processar eventos e enviar notificações (ex: lembretes de consulta).
   * `services/history-service/`: Microsserviço consumidor do Kafka que atua como um "Read Model" (CQRS). Ele constrói uma projeção de dados otimizada para leitura do histórico de consultas.
 
 ## 🛠️ Stack Tecnológica
@@ -58,7 +58,7 @@ docker-compose up -d --build
 1.  **Inicia a Infra:** Sobe os contêineres `postgres`, `zookeeper`, `kafka` e `kafka-ui`.
 2.  **Cria os Bancos:** O `postgres` executa o script em `infra/postgres/init/01-init-dbs.sql` e cria automaticamente os bancos `scheduler_db`, `notification_db` e `history_db`.
 3.  **Constrói as Aplicações:** O Docker usa os `Dockerfiles` de cada serviço (ex: `services/scheduler-service/Dockerfile`) para compilar o código Java e gerar as imagens.
-4.  **Inicia as Aplicações:** Inicia os contêineres `scheduler-service`, `notificationEntity-service` e `history-service`.
+4.  **Inicia as Aplicações:** Inicia os contêineres `scheduler-service`, `notification-service` e `history-service`.
 5.  **Resiliência:** Os serviços Java têm `restart: on-failure` para garantir que eles reiniciem caso tentem se conectar ao Postgres antes que este esteja pronto.
 
 ### 2\. Para Parar a Execução
