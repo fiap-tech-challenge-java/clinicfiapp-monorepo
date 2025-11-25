@@ -40,7 +40,7 @@ public class User implements UserDetails {
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "role", nullable = false, insertable = false, updatable = false)
     private Role role;
 
     @Column(name = "is_active", nullable = false)
