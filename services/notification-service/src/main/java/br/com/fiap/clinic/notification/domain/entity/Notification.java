@@ -32,9 +32,12 @@ public class Notification {
     @Column(name = "notification_type", nullable = false)
     private NotificationType notificationType;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Channel channel;
 
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
 
