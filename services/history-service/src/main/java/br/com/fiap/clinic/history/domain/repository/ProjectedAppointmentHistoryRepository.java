@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ProjectedAppointmentHistoryRepository extends JpaRepository<ProjectedAppointmentHistory, Long> {
     List<ProjectedAppointmentHistory> findByPatientId(Long patientId);
+    List<ProjectedAppointmentHistory> findByDoctorId(Long doctorId);
 }
