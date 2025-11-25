@@ -3,7 +3,7 @@ package br.com.fiap.clinic.history.domain.service;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
 import br.com.fiap.clinic.history.domain.repository.ProjectedAppointmentHistoryRepository;
 import br.com.fiap.clinic.history.exception.HistoryAccessDeniedException;
-import jakarta.persistence.EntityNotFoundException;
+import br.com.fiap.clinic.history.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -88,7 +88,7 @@ public class HistoryProjectionService {
      * @return histórico atualizado
      * @throws IllegalArgumentException     se history for nulo ou não possuir ID
      * @throws HistoryAccessDeniedException se usuário não for médico ou não autenticado
-     * @throws EntityNotFoundException      se histórico com o ID fornecido não existir
+     * @throws ResourceNotFoundException    se histórico com o ID fornecido não existir
      */
     public ProjectedAppointmentHistory updateHistory(ProjectedAppointmentHistory history) {
         if (history == null) {
@@ -106,7 +106,7 @@ public class HistoryProjectionService {
         }
 
         ProjectedAppointmentHistory existingHistory = historyRepository.findById(history.getId())
-                .orElseThrow(() -> new EntityNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Histórico com ID " + history.getId() + " não encontrado."
                 ));
 
