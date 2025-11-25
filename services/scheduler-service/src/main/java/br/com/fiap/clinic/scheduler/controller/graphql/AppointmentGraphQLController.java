@@ -35,26 +35,26 @@ public class AppointmentGraphQLController {
     // --- QUERIES ---
 
     @QueryMapping
-    @Secured({"ROLE_MEDICO", "ROLE_ENFERMEIRO", "ROLE_PACIENTE"})
+    @Secured({"ROLE_doctor", "ROLE_nurse", "ROLE_patient"})
     public List<Appointment> appointments() {
         // TODO: Em produção, filtrar por usuário logado se for PACIENTE
         return appointmentService.findAll();
     }
 
     @QueryMapping
-    @Secured({"ROLE_MEDICO", "ROLE_ENFERMEIRO", "ROLE_PACIENTE"})
+    @Secured({"ROLE_doctor", "ROLE_nurse", "ROLE_patient"})
     public Appointment appointment(@Argument String id) {
         return appointmentService.findById(UUID.fromString(id));
     }
 
     @QueryMapping
-    @Secured({"ROLE_MEDICO", "ROLE_ENFERMEIRO"})
+    @Secured({"ROLE_doctor", "ROLE_nurse"})
     public List<Appointment> appointmentsByStatus(@Argument AppointmentStatus status) {
         return appointmentService.findByStatus(status);
     }
 
     @QueryMapping
-    @Secured({"ROLE_MEDICO", "ROLE_ENFERMEIRO"})
+    @Secured({"ROLE_doctor", "ROLE_nurse"})
     public List<AppointmentHistory> appointmentHistory(@Argument String appointmentId) {
         return appointmentService.findAppointmentHistory(UUID.fromString(appointmentId));
     }
@@ -62,7 +62,7 @@ public class AppointmentGraphQLController {
     // --- MUTATIONS ---
 
     @MutationMapping
-    @Secured({"ROLE_ENFERMEIRO", "ROLE_MEDICO"}) // Apenas equipe médica cria
+    @Secured({"ROLE_nurse", "ROLE_doctor"}) // Apenas equipe médica cria
     public Appointment createAppointment(@Argument CreateAppointmentInput input) {
         User currentUser = getCurrentUser();
 
@@ -76,25 +76,25 @@ public class AppointmentGraphQLController {
     }
 
     @MutationMapping
-    @Secured({"ROLE_ENFERMEIRO", "ROLE_MEDICO"})
+    @Secured({"ROLE_nurse", "ROLE_doctor"})
     public Appointment confirmAppointment(@Argument String id) {
         return appointmentService.confirmAppointment(UUID.fromString(id));
     }
 
     @MutationMapping
-    @Secured({"ROLE_ENFERMEIRO", "ROLE_MEDICO"})
+    @Secured({"ROLE_nurse", "ROLE_doctor"})
     public Appointment cancelAppointment(@Argument String id) {
         return appointmentService.cancelAppointment(UUID.fromString(id));
     }
 
     @MutationMapping
-    @Secured({"ROLE_MEDICO"}) // Apenas médico finaliza consulta
+    @Secured({"ROLE_doctor"}) // Apenas médico finaliza consulta
     public Appointment completeAppointment(@Argument String id) {
         return appointmentService.completeAppointment(UUID.fromString(id));
     }
 
     @MutationMapping
-    @Secured({"ROLE_ENFERMEIRO", "ROLE_MEDICO"})
+    @Secured({"ROLE_nurse", "ROLE_doctor"})
     public Appointment rescheduleAppointment(@Argument RescheduleAppointmentInput input) {
         return appointmentService.rescheduleAppointment(
                 UUID.fromString(input.appointmentId),
