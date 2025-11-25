@@ -2,6 +2,7 @@ package br.com.fiap.clinic.scheduler.domain.service;
 
 import br.com.fiap.clinic.scheduler.domain.entity.Appointment;
 import br.com.fiap.clinic.scheduler.domain.entity.OutboxEvent;
+import br.com.fiap.clinic.scheduler.domain.enums.NotificationType;
 import br.com.fiap.clinic.scheduler.domain.repository.AppointmentRepository;
 import br.com.fiap.clinic.scheduler.domain.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,7 +73,7 @@ public class AppointmentReminderService {
             payload.put("doctorSpecialty", appointment.getDoctor().getSpecialty());
             payload.put("appointmentDate", appointment.getStartAt().toString());
             payload.put("appointmentTime", appointment.getStartAt().toLocalTime().toString());
-            payload.put("notificationType", "APPOINTMENT_REMINDER");
+            payload.put("notificationType", NotificationType.APPOINTMENT_REMINDER);
             
             OutboxEvent event = new OutboxEvent();
             event.setAggregateType("Appointment");

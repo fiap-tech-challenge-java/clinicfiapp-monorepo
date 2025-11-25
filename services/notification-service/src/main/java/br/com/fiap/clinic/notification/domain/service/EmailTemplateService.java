@@ -20,8 +20,8 @@ public class EmailTemplateService {
             LocalDateTime appointmentDate
     ) {
         return switch (type) {
-            case LEMBRETE -> buildReminderTemplate(patientName, doctorName, doctorSpecialty, appointmentDate);
-            case AGENDAMENTO -> buildAppointmentConfirmationTemplate(patientName, doctorName, doctorSpecialty, appointmentDate);
+            case APPOINTMENT_REMINDER -> buildReminderTemplate(patientName, doctorName, doctorSpecialty, appointmentDate);
+            case APPOINTMENT -> buildAppointmentConfirmationTemplate(patientName, doctorName, doctorSpecialty, appointmentDate);
         };
     }
 
@@ -376,8 +376,8 @@ public class EmailTemplateService {
 
     public String getSubject(NotificationType type) {
         return switch (type) {
-            case LEMBRETE -> "🔔 Lembrete: Sua consulta está próxima!";
-            case AGENDAMENTO -> "✅ Consulta agendada com sucesso!";
+            case APPOINTMENT_REMINDER -> "🔔 Lembrete: Sua consulta está próxima!";
+            case APPOINTMENT -> "✅ Consulta agendada com sucesso!";
         };
     }
 }

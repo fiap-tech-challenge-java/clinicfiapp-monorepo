@@ -1,4 +1,4 @@
-package br.com.fiap.clinic.notification.domain.enums;
+package br.com.fiap.clinic.scheduler.domain.enums;
 
 public enum NotificationType {
     APPOINTMENT_REMINDER("Lembrete de Consulta"),
@@ -14,4 +14,3 @@ public enum NotificationType {
         return description;
     }
 }
-
