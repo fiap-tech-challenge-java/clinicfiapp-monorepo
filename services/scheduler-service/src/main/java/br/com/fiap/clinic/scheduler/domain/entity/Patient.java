@@ -2,33 +2,25 @@ package br.com.fiap.clinic.scheduler.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "patients")
-@Getter
-@Setter
+@PrimaryKeyJoinColumn(name = "user_id")
+@DiscriminatorValue("patient")
+@Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Patient {
-
-    @Id
-    @Column(name = "user_id")
-    private UUID userId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "user_id")
-    private User user;
+public class Patient extends User {
 
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Column(name = "is_active")
-    private boolean isActive = true;
+    private Boolean isActive = true;
 }
