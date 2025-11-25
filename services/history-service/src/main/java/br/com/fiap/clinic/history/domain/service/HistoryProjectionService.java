@@ -1,5 +1,6 @@
 package br.com.fiap.clinic.history.domain.service;
 
+import br.com.fiap.clinic.history.config.security.CustomUserDetails;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
 import br.com.fiap.clinic.history.domain.repository.ProjectedAppointmentHistoryRepository;
 import br.com.fiap.clinic.history.exception.HistoryAccessDeniedException;
@@ -136,20 +137,33 @@ public class HistoryProjectionService {
     }
 
     /**
-     * Extrai o ID do usuário do principal (authentication.getName()).
+     * Extrai o ID do usuário do principal de autenticação.
      * <p>
-     * Pressupõe que o sistema armazena o ID numérico como principal.
-     * Exemplo: usuário "fernando" com ID 55 → getName() retorna "55".
+     * Suporta dois formatos:
+     * <ul>
+     *   <li><b>CustomUserDetails</b>: extrai userId diretamente do objeto</li>
+     *   <li><b>String</b>: fallback para compatibilidade (authentication.getName() retorna ID numérico)</li>
+     * </ul>
      *
      * @param authentication objeto de autenticação
      * @return ID do usuário
-     * @throws HistoryAccessDeniedException se ID não for numérico
+     * @throws HistoryAccessDeniedException se ID não puder ser extraído ou for inválido
      */
     private Long getUserIdFromAuthentication(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) principal;
+            return userDetails.getUserId();
+        }
+
         try {
             return Long.parseLong(authentication.getName());
         } catch (NumberFormatException e) {
-            throw new HistoryAccessDeniedException("ID de usuário inválido.");
+            throw new HistoryAccessDeniedException(
+                    "Não foi possível extrair ID do usuário. " +
+                    "O principal deve ser CustomUserDetails ou getName() deve retornar um ID numérico."
+            );
         }
     }
 }
