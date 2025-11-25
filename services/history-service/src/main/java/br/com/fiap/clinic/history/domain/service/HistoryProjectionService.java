@@ -34,6 +34,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HistoryProjectionService {
 
+    private static final String ROLE_MEDICO = "ROLE_MEDICO";
+    private static final String ROLE_ENFERMEIRO = "ROLE_ENFERMEIRO";
+    private static final String ROLE_PACIENTE = "ROLE_PACIENTE";
+
     private final ProjectedAppointmentHistoryRepository historyRepository;
 
     /**
@@ -59,11 +63,11 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (roles.contains("ROLE_MEDICO") || roles.contains("ROLE_ENFERMEIRO")) {
+        if (roles.contains(ROLE_MEDICO) || roles.contains(ROLE_ENFERMEIRO)) {
             return historyRepository.findByPatientId(patientId);
         }
 
-        if (roles.contains("ROLE_PACIENTE")) {
+        if (roles.contains(ROLE_PACIENTE)) {
             Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
 
             if (!Objects.equals(patientId, authenticatedPatientId)) {
@@ -102,7 +106,7 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (!roles.contains("ROLE_MEDICO")) {
+        if (!roles.contains(ROLE_MEDICO)) {
             throw new HistoryAccessDeniedException("Apenas médicos podem editar históricos de consultas.");
         }
 
