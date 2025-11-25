@@ -113,9 +113,6 @@ public class HistoryProjectionService {
 
         existingHistory.setStatus(history.getStatus());
         existingHistory.setLastAction(history.getLastAction());
-        existingHistory.setDoctorName(history.getDoctorName());
-        existingHistory.setPatientName(history.getPatientName());
-        existingHistory.setStartAt(history.getStartAt());
 
         return historyRepository.save(existingHistory);
     }
