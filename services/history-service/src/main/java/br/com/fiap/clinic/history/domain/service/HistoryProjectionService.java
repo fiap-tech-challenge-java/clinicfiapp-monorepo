@@ -200,8 +200,7 @@ public class HistoryProjectionService {
     private Long getUserIdFromAuthentication(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof CustomUserDetails) {
-            CustomUserDetails userDetails = (CustomUserDetails) principal;
+        if (principal instanceof CustomUserDetails userDetails) {
             return userDetails.userId();
         }
 
