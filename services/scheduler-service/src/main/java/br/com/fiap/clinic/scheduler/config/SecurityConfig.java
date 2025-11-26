@@ -26,15 +26,12 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/graphiql", "/actuator/health").permitAll()
+                        .requestMatchers("/", "/graphiql", "/actuator/health").permitAll()
                         .requestMatchers("/graphql").authenticated()
                         .anyRequest().authenticated()
                 )
-
                 .httpBasic(withDefaults());
 
         return http.build();
@@ -50,3 +47,4 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 }
+

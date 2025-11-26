@@ -23,18 +23,18 @@ import java.util.stream.Collectors;
  * <p>
  * Hierarquia de acesso por role:
  * <ul>
- *   <li><b>ROLE_MEDICO</b>: Visualizar e editar históricos</li>
- *   <li><b>ROLE_ENFERMEIRO</b>: Visualizar históricos (read-only)</li>
- *   <li><b>ROLE_PACIENTE</b>: Visualizar apenas o próprio histórico</li>
+ *   <li><b>ROLE_doctor</b>: Visualizar e editar históricos</li>
+ *   <li><b>ROLE_nurse</b>: Visualizar históricos (read-only)</li>
+ *   <li><b>ROLE_patient</b>: Visualizar apenas o próprio histórico</li>
  * </ul>
  */
 @Service
 @RequiredArgsConstructor
 public class HistoryProjectionService {
 
-    private static final String ROLE_MEDICO = "ROLE_MEDICO";
-    private static final String ROLE_ENFERMEIRO = "ROLE_ENFERMEIRO";
-    private static final String ROLE_PACIENTE = "ROLE_PACIENTE";
+    private static final String ROLE_doctor = "ROLE_doctor";
+    private static final String ROLE_nurse = "ROLE_nurse";
+    private static final String ROLE_patient = "ROLE_patient";
 
     private final ProjectedAppointmentHistoryRepository historyRepository;
 
@@ -50,7 +50,7 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (!roles.contains(ROLE_MEDICO)) {
+        if (!roles.contains(ROLE_doctor)) {
             throw new HistoryAccessDeniedException("Apenas médicos podem criar históricos de consultas.");
         }
 
@@ -68,11 +68,11 @@ public class HistoryProjectionService {
         ProjectedAppointmentHistory history = historyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Histórico com ID " + id + " não encontrado."));
 
-        if (roles.contains(ROLE_MEDICO) || roles.contains(ROLE_ENFERMEIRO)) {
+        if (roles.contains(ROLE_doctor) || roles.contains(ROLE_nurse)) {
             return history;
         }
 
-        if (roles.contains(ROLE_PACIENTE)) {
+        if (roles.contains(ROLE_patient)) {
             Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
             if (!Objects.equals(history.getPatientId(), authenticatedPatientId)) {
                 throw new HistoryAccessDeniedException("Paciente só pode visualizar o próprio histórico.");
@@ -87,11 +87,11 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (roles.contains(ROLE_MEDICO) || roles.contains(ROLE_ENFERMEIRO)) {
+        if (roles.contains(ROLE_doctor) || roles.contains(ROLE_nurse)) {
             return historyRepository.findAll();
         }
 
-        if (roles.contains(ROLE_PACIENTE)) {
+        if (roles.contains(ROLE_patient)) {
             Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
             return historyRepository.findByPatientId(authenticatedPatientId);
         }
@@ -107,11 +107,11 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (roles.contains(ROLE_MEDICO) || roles.contains(ROLE_ENFERMEIRO)) {
+        if (roles.contains(ROLE_doctor) || roles.contains(ROLE_nurse)) {
             return historyRepository.findByPatientId(patientId);
         }
 
-        if (roles.contains(ROLE_PACIENTE)) {
+        if (roles.contains(ROLE_patient)) {
             Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
 
             if (!Objects.equals(patientId, authenticatedPatientId)) {
@@ -124,7 +124,21 @@ public class HistoryProjectionService {
         throw new HistoryAccessDeniedException("Acesso negado ao histórico de consultas.");
     }
 
-    @Transactional
+    /**
+     * Atualiza um registro de histórico de consulta.
+     * <p>
+     * Controle de acesso:
+     * <ul>
+     *   <li>Apenas <b>ROLE_doctor</b> pode editar históricos</li>
+     *   <li>Enfermeiros e pacientes têm acesso read-only</li>
+     * </ul>
+     *
+     * @param history entidade de histórico a ser atualizada (não nula, ID obrigatório)
+     * @return histórico atualizado
+     * @throws IllegalArgumentException     se history for nulo ou não possuir ID
+     * @throws HistoryAccessDeniedException se usuário não for médico ou não autenticado
+     * @throws ResourceNotFoundException    se histórico com o ID fornecido não existir
+     */
     public ProjectedAppointmentHistory updateHistory(ProjectedAppointmentHistory history) {
         if (history == null) {
             throw new IllegalArgumentException("O histórico não pode ser nulo.");
@@ -136,7 +150,7 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (!roles.contains(ROLE_MEDICO)) {
+        if (!roles.contains(ROLE_doctor)) {
             throw new HistoryAccessDeniedException("Apenas médicos podem editar históricos de consultas.");
         }
 
@@ -161,7 +175,7 @@ public class HistoryProjectionService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Set<String> roles = getRoles(authentication);
 
-        if (!roles.contains(ROLE_MEDICO)) {
+        if (!roles.contains(ROLE_doctor)) {
             throw new HistoryAccessDeniedException("Apenas médicos podem deletar históricos de consultas.");
         }
 

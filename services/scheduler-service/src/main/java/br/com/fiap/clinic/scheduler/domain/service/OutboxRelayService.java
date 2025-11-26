@@ -1,5 +1,6 @@
 package br.com.fiap.clinic.scheduler.domain.service;
 
+import br.com.fiap.clinic.scheduler.config.KafkaConfig;
 import br.com.fiap.clinic.scheduler.domain.entity.OutboxEvent;
 import br.com.fiap.clinic.scheduler.domain.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,9 @@ public class OutboxRelayService {
     @Value("${outbox.batch.size:50}")
     private int batchSize;
 
-    // Define um tópico padrão ou deriva do aggregateType
-    private static final String DEFAULT_TOPIC = "appointment_events";
+    private static final String DEFAULT_TOPIC = KafkaConfig.TOPIC_NAME;
 
-    @Scheduled(initialDelayString = "15000", fixedDelayString = "${outbox.poll.delay:5000}") // Roda a cada 5 segundos
+    @Scheduled(initialDelayString = "15000", fixedDelayString = "${outbox.poll.delay:5000}")
     @Transactional
     public void pollAndRelayEvents() {
         log.debug("Iniciando poll para eventos do Outbox...");
