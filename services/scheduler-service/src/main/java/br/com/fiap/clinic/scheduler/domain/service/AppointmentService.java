@@ -1,260 +1,286 @@
 package br.com.fiap.clinic.scheduler.domain.service;
 
-import br.com.fiap.clinic.scheduler.domain.entity.Appointment;
-import br.com.fiap.clinic.scheduler.domain.entity.AppointmentStatus;
-import br.com.fiap.clinic.scheduler.domain.entity.Doctor;
-import br.com.fiap.clinic.scheduler.domain.entity.Patient;
-import br.com.fiap.clinic.scheduler.domain.repository.AppointmentRepository;
+import br.com.fiap.clinic.scheduler.domain.entity.*;
+import br.com.fiap.clinic.scheduler.domain.repository.*;
 import br.com.fiap.clinic.scheduler.exception.ResourceNotFoundException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * Serviço de gerenciamento de consultas.
- * <p>
- * Responsável pelas operações de CRUD e regras de negócio relacionadas às consultas médicas.
+ * Responsável pelas operações de CRUD, regras de negócio e publicação de eventos (Outbox).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
-    private final DoctorService doctorService;
-    private final PatientService patientService;
+    private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
+    private final UserRepository userRepository;
+    
+    // Repositórios para garantir a integridade e eventos
+    private final OutboxEventRepository outboxEventRepository;
+    private final AppointmentHistoryRepository appointmentHistoryRepository;
+    
+    private final ObjectMapper objectMapper;
 
     /**
-     * Busca todas as consultas cadastradas.
-     *
-     * @return lista de todas as consultas
+     * Busca todas as consultas.
      */
+    @Transactional(readOnly = true)
     public List<Appointment> findAll() {
         return appointmentRepository.findAll();
     }
 
     /**
-     * Busca todas as consultas com paginação.
-     *
-     * @param pageable configuração de paginação
-     * @return página de consultas
+     * Busca consultas com paginação.
      */
+    @Transactional(readOnly = true)
     public Page<Appointment> findAll(Pageable pageable) {
         return appointmentRepository.findAll(pageable);
     }
 
     /**
      * Busca uma consulta por ID.
-     *
-     * @param id ID da consulta
-     * @return consulta encontrada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
      */
+    @Transactional(readOnly = true)
     public Appointment findById(UUID id) {
         return appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Consulta não encontrada com ID: " + id));
     }
 
     /**
-     * Busca consultas para envio de lembretes.
-     * Retorna consultas agendadas entre o período especificado que estão ativas
-     * e com status CONFIRMADO ou SOLICITADO.
-     *
-     * @param startDate data inicial do período
-     * @param endDate data final do período
-     * @return lista de consultas para lembrete
-     */
-    public List<Appointment> findAppointmentsForReminder(LocalDateTime startDate, LocalDateTime endDate) {
-        return appointmentRepository.findAppointmentsForReminder(startDate, endDate);
-    }
-
-    /**
-     * Cria uma nova consulta.
-     * Valida se o médico e paciente existem e estão ativos.
-     *
-     * @param appointment dados da consulta a ser criada
-     * @return consulta criada
-     * @throws ResourceNotFoundException se médico ou paciente não existirem
-     * @throws IllegalArgumentException se médico ou paciente estiverem inativos
+     * Cria uma nova consulta com validações e evento de criação.
      */
     @Transactional
-    public Appointment create(Appointment appointment) {
-        // Validar médico
-        Doctor doctor = doctorService.findById(appointment.getDoctor().getId());
-        if (!doctor.getIsActive()) {
-            throw new IllegalArgumentException("Médico está inativo e não pode receber consultas");
-        }
+    public Appointment createAppointment(UUID patientId, UUID doctorId, UUID createdByUserId,
+                                         OffsetDateTime startAt, OffsetDateTime endAt) {
+        log.info("Criando agendamento: paciente={}, médico={}, início={}, fim={}", 
+                patientId, doctorId, startAt, endAt);
 
-        // Validar paciente
-        Patient patient = patientService.findById(appointment.getPatient().getId());
-        if (!patient.getIsActive()) {
-            throw new IllegalArgumentException("Paciente está inativo e não pode agendar consultas");
-        }
-
-        // Validar datas
-        if (appointment.getStartAt().isAfter(appointment.getEndAt())) {
+        // 1. Validações de Data (Lógica do seu colega)
+        if (startAt.isAfter(endAt)) {
             throw new IllegalArgumentException("Data de início deve ser anterior à data de fim");
         }
-
-        if (appointment.getStartAt().isBefore(OffsetDateTime.now())) {
+        if (startAt.isBefore(OffsetDateTime.now())) {
             throw new IllegalArgumentException("Não é possível agendar consultas no passado");
         }
 
-        // Definir status padrão se não informado
-        if (appointment.getStatus() == null) {
-            appointment.setStatus(AppointmentStatus.SOLICITADO);
+        // 2. Busca e Validação de Entidades (Nossa lógica de conexão com repositórios)
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + patientId));
+        
+        if (!patient.getIsActive()) { // Validação do colega
+            throw new IllegalArgumentException("Paciente está inativo e não pode agendar consultas");
         }
 
-        return appointmentRepository.save(appointment);
-    }
-
-    /**
-     * Atualiza os dados de uma consulta existente.
-     *
-     * @param id ID da consulta a ser atualizada
-     * @param appointmentDetails novos dados da consulta
-     * @return consulta atualizada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     */
-    @Transactional
-    public Appointment update(UUID id, Appointment appointmentDetails) {
-        Appointment appointment = findById(id);
-
-        // Não permite alterar consultas já realizadas ou canceladas
-        if (appointment.getStatus() == AppointmentStatus.REALIZADO ||
-            appointment.getStatus() == AppointmentStatus.CANCELADO) {
-            throw new IllegalStateException("Não é possível alterar consultas realizadas ou canceladas");
+        Doctor doctor = doctorRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Médico não encontrado: " + doctorId));
+        
+        if (!doctor.getIsActive()) { // Validação do colega
+            throw new IllegalArgumentException("Médico está inativo e não pode receber consultas");
         }
 
-        appointment.setStartAt(appointmentDetails.getStartAt());
-        appointment.setEndAt(appointmentDetails.getEndAt());
-        appointment.setStatus(appointmentDetails.getStatus());
+        User creator = userRepository.findById(createdByUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário criador não encontrado: " + createdByUserId));
 
-        return appointmentRepository.save(appointment);
+        // 3. Construção do Objeto
+        Appointment appointment = new Appointment();
+        appointment.setPatient(patient);
+        appointment.setDoctor(doctor);
+        appointment.setCreatedBy(creator);
+        appointment.setStartAt(startAt);
+        appointment.setEndAt(endAt);
+        appointment.setStatus(AppointmentStatus.SOLICITADO); // Status inicial
+        appointment.setActive(true);
+
+        // 4. Persistência
+        appointment = appointmentRepository.save(appointment);
+        log.info("Agendamento criado com sucesso: id={}", appointment.getId());
+
+        // 5. Auditoria e Eventos (Nossa lógica essencial para o Kafka)
+        saveHistory(appointment, "CRIADO");
+        createOutboxEvent(appointment, "AppointmentCreated");
+
+        return appointment;
     }
 
     /**
      * Confirma uma consulta.
-     *
-     * @param id ID da consulta a ser confirmada
-     * @return consulta confirmada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     * @throws IllegalStateException se a consulta não puder ser confirmada
      */
     @Transactional
-    public Appointment confirm(UUID id) {
+    public Appointment confirmAppointment(UUID id) {
+        log.info("Confirmando agendamento: id={}", id);
         Appointment appointment = findById(id);
 
+        // Regra de negócio do colega
         if (appointment.getStatus() != AppointmentStatus.SOLICITADO) {
             throw new IllegalStateException("Apenas consultas com status SOLICITADO podem ser confirmadas");
         }
 
         appointment.setStatus(AppointmentStatus.CONFIRMADO);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        // Gera evento para notificar (ex: enviar email)
+        saveHistory(appointment, "CONFIRMADO");
+        createOutboxEvent(appointment, "AppointmentConfirmed");
+
+        return appointment;
     }
 
     /**
      * Cancela uma consulta.
-     *
-     * @param id ID da consulta a ser cancelada
-     * @return consulta cancelada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     * @throws IllegalStateException se a consulta não puder ser cancelada
      */
     @Transactional
-    public Appointment cancel(UUID id) {
+    public Appointment cancelAppointment(UUID id) {
+        log.info("Cancelando agendamento: id={}", id);
         Appointment appointment = findById(id);
 
+        // Regras de negócio do colega
         if (appointment.getStatus() == AppointmentStatus.REALIZADO) {
             throw new IllegalStateException("Não é possível cancelar consultas já realizadas");
         }
-
         if (appointment.getStatus() == AppointmentStatus.CANCELADO) {
             throw new IllegalStateException("Consulta já está cancelada");
         }
 
         appointment.setStatus(AppointmentStatus.CANCELADO);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        saveHistory(appointment, "CANCELADO");
+        createOutboxEvent(appointment, "AppointmentCancelled");
+
+        return appointment;
     }
 
     /**
      * Marca uma consulta como realizada.
-     *
-     * @param id ID da consulta a ser marcada como realizada
-     * @return consulta atualizada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     * @throws IllegalStateException se a consulta não puder ser marcada como realizada
      */
     @Transactional
-    public Appointment markAsCompleted(UUID id) {
+    public Appointment completeAppointment(UUID id) {
+        log.info("Concluindo agendamento: id={}", id);
         Appointment appointment = findById(id);
 
         if (appointment.getStatus() == AppointmentStatus.CANCELADO) {
             throw new IllegalStateException("Não é possível marcar como realizada uma consulta cancelada");
         }
-
         if (appointment.getStatus() == AppointmentStatus.REALIZADO) {
             throw new IllegalStateException("Consulta já está marcada como realizada");
         }
 
         appointment.setStatus(AppointmentStatus.REALIZADO);
-        return appointmentRepository.save(appointment);
+        appointment = appointmentRepository.save(appointment);
+
+        saveHistory(appointment, "REALIZADO");
+        createOutboxEvent(appointment, "AppointmentCompleted");
+
+        return appointment;
     }
 
     /**
-     * Desativa uma consulta (soft delete).
-     *
-     * @param id ID da consulta a ser desativada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
+     * Reagenda uma consulta (Atualiza datas).
      */
     @Transactional
-    public void deactivate(UUID id) {
+    public Appointment rescheduleAppointment(UUID id, OffsetDateTime newStart, OffsetDateTime newEnd) {
+        log.info("Reagendando: id={}, novo início={}, novo fim={}", id, newStart, newEnd);
         Appointment appointment = findById(id);
-        appointment.setActive(false);
-        appointmentRepository.save(appointment);
-    }
 
-    /**
-     * Ativa uma consulta.
-     *
-     * @param id ID da consulta a ser ativada
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     */
-    @Transactional
-    public void activate(UUID id) {
-        Appointment appointment = findById(id);
-        appointment.setActive(true);
-        appointmentRepository.save(appointment);
-    }
-
-    /**
-     * Remove permanentemente uma consulta.
-     *
-     * @param id ID da consulta a ser removida
-     * @throws ResourceNotFoundException se a consulta não for encontrada
-     */
-    @Transactional
-    public void delete(UUID id) {
-        if (!appointmentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Consulta não encontrada com ID: " + id);
+        if (appointment.getStatus() == AppointmentStatus.REALIZADO || 
+            appointment.getStatus() == AppointmentStatus.CANCELADO) {
+            throw new IllegalStateException("Não é possível reagendar consultas realizadas ou canceladas");
         }
-        appointmentRepository.deleteById(id);
+        
+        if (newStart.isAfter(newEnd)) {
+            throw new IllegalArgumentException("Data de início deve ser anterior à data de fim");
+        }
+
+        appointment.setStartAt(newStart);
+        appointment.setEndAt(newEnd);
+        // Opcional: Voltar status para SOLICITADO se necessário, ou manter o atual
+        
+        appointment = appointmentRepository.save(appointment);
+
+        saveHistory(appointment, "REAGENDADO");
+        createOutboxEvent(appointment, "AppointmentRescheduled");
+
+        return appointment;
+    }
+    
+    /**
+     * Busca histórico de alterações.
+     */
+    @Transactional(readOnly = true)
+    public List<AppointmentHistory> findAppointmentHistory(UUID appointmentId) {
+        return appointmentHistoryRepository.findByAppointmentIdOrderByEventTimeDesc(appointmentId);
+    }
+    
+    // Lista consultas por Status
+    @Transactional(readOnly = true)
+    public List<Appointment> findByStatus(AppointmentStatus status) {
+        return appointmentRepository.findByStatusAndIsActiveTrue(status);
     }
 
-    /**
-     * Verifica se uma consulta existe.
-     *
-     * @param id ID da consulta
-     * @return true se a consulta existe, false caso contrário
-     */
-    public boolean exists(UUID id) {
-        return appointmentRepository.existsById(id);
+    // ==================== Métodos Auxiliares Privados ====================
+
+    private void saveHistory(Appointment appointment, String action) {
+        try {
+            AppointmentHistory history = new AppointmentHistory();
+            history.setAppointment(appointment);
+            history.setAction(action);
+
+            // Criar snapshot simples
+            Map<String, Object> snapshot = new HashMap<>();
+            snapshot.put("status", appointment.getStatus());
+            snapshot.put("startAt", appointment.getStartAt().toString());
+            snapshot.put("endAt", appointment.getEndAt().toString());
+
+            history.setSnapshot(objectMapper.writeValueAsString(snapshot));
+            appointmentHistoryRepository.save(history);
+        } catch (JsonProcessingException e) {
+            log.error("Erro ao salvar histórico", e);
+        }
+    }
+
+    private void createOutboxEvent(Appointment appointment, String eventType) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("appointmentId", appointment.getId());
+            payload.put("eventType", eventType);
+            payload.put("timestamp", OffsetDateTime.now().toString());
+            payload.put("status", appointment.getStatus().toString());
+            
+            // Dados enriquecidos para o consumidor (Notification Service)
+            payload.put("patientId", appointment.getPatient().getId());
+            payload.put("patientName", appointment.getPatient().getName());
+            payload.put("patientEmail", appointment.getPatient().getEmail());
+            payload.put("doctorName", appointment.getDoctor().getName());
+            payload.put("appointmentDate", appointment.getStartAt().toString());
+
+            OutboxEvent event = new OutboxEvent();
+            event.setAggregateType("Appointment");
+            event.setAggregateId(appointment.getId().toString());
+            event.setEventType(eventType);
+            event.setPayload(objectMapper.writeValueAsString(payload));
+
+            outboxEventRepository.save(event);
+            log.info("Evento Outbox salvo: {}", eventType);
+        } catch (Exception e) {
+            log.error("Erro ao criar evento Outbox", e);
+            // Em produção, considere lançar a exceção para rollback da transação
+        }
     }
 }

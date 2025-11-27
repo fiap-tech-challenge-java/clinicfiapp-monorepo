@@ -1,7 +1,5 @@
 package br.com.fiap.clinic.history.config.security;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -13,13 +11,8 @@ import java.util.Collection;
  * Esta classe é usada para armazenar o ID numérico do usuário no contexto de segurança,
  * permitindo controle de acesso baseado no ID do paciente/médico/enfermeiro.
  */
-@Getter
-@RequiredArgsConstructor
-public class CustomUserDetails implements UserDetails {
-
-    private final Long userId;
-    private final String username;
-    private final Collection<? extends GrantedAuthority> authorities;
+public record CustomUserDetails(Long userId, String username,
+                                Collection<? extends GrantedAuthority> authorities) implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -28,7 +21,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getPassword() {
-        return null; // Não necessário após autenticação
+        return null;
     }
 
     @Override
