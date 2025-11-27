@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -26,9 +27,6 @@ import java.util.stream.Collectors;
  *   <li><b>ROLE_nurse</b>: Visualizar históricos (read-only)</li>
  *   <li><b>ROLE_patient</b>: Visualizar apenas o próprio histórico</li>
  * </ul>
- * Usuários com múltiplas roles têm o acesso mais amplo.
- * <p>
- * <b>Nota</b>: O registro de novas consultas é feito automaticamente pelo serviço de agendamento.
  */
 @Service
 @RequiredArgsConstructor
@@ -40,21 +38,67 @@ public class HistoryProjectionService {
 
     private final ProjectedAppointmentHistoryRepository historyRepository;
 
-    /**
-     * Recupera o histórico de consultas de um paciente.
-     * <p>
-     * Controle de acesso:
-     * <ul>
-     *   <li>Médicos: visualização de qualquer histórico</li>
-     *   <li>Enfermeiros: visualização de qualquer histórico</li>
-     *   <li>Pacientes: visualização apenas do próprio histórico</li>
-     * </ul>
-     *
-     * @param patientId ID do paciente (não nulo)
-     * @return histórico de consultas do paciente
-     * @throws IllegalArgumentException     se patientId for nulo
-     * @throws HistoryAccessDeniedException se acesso negado ou usuário não autenticado
-     */
+    @Transactional
+    public ProjectedAppointmentHistory createHistory(ProjectedAppointmentHistory history) {
+        if (history == null) {
+            throw new IllegalArgumentException("O histórico não pode ser nulo.");
+        }
+        if (history.getId() != null) {
+            throw new IllegalArgumentException("Para criar um histórico, o ID deve ser nulo.");
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Set<String> roles = getRoles(authentication);
+
+        if (!roles.contains(ROLE_doctor)) {
+            throw new HistoryAccessDeniedException("Apenas médicos podem criar históricos de consultas.");
+        }
+
+        return historyRepository.save(history);
+    }
+
+    public ProjectedAppointmentHistory getHistoryById(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("O ID não pode ser nulo.");
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Set<String> roles = getRoles(authentication);
+
+        ProjectedAppointmentHistory history = historyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Histórico com ID " + id + " não encontrado."));
+
+        if (roles.contains(ROLE_doctor) || roles.contains(ROLE_nurse)) {
+            return history;
+        }
+
+        if (roles.contains(ROLE_patient)) {
+            Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
+            if (!Objects.equals(history.getPatientId(), authenticatedPatientId)) {
+                throw new HistoryAccessDeniedException("Paciente só pode visualizar o próprio histórico.");
+            }
+            return history;
+        }
+
+        throw new HistoryAccessDeniedException("Acesso negado ao histórico.");
+    }
+
+    public List<ProjectedAppointmentHistory> getAllHistories() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Set<String> roles = getRoles(authentication);
+
+        if (roles.contains(ROLE_doctor) || roles.contains(ROLE_nurse)) {
+            return historyRepository.findAll();
+        }
+
+        if (roles.contains(ROLE_patient)) {
+            Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
+            return historyRepository.findByPatientId(authenticatedPatientId);
+        }
+
+        throw new HistoryAccessDeniedException("Acesso negado aos históricos.");
+    }
+
     public List<ProjectedAppointmentHistory> getHistoryForPatient(Long patientId) {
         if (patientId == null) {
             throw new IllegalArgumentException("O ID do paciente não pode ser nulo.");
@@ -122,13 +166,26 @@ public class HistoryProjectionService {
         return historyRepository.save(existingHistory);
     }
 
-    /**
-     * Extrai as roles do usuário autenticado.
-     *
-     * @param authentication objeto de autenticação
-     * @return conjunto de roles
-     * @throws HistoryAccessDeniedException se não autenticado ou usuário anônimo
-     */
+    @Transactional
+    public void deleteHistory(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("O ID não pode ser nulo.");
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Set<String> roles = getRoles(authentication);
+
+        if (!roles.contains(ROLE_doctor)) {
+            throw new HistoryAccessDeniedException("Apenas médicos podem deletar históricos de consultas.");
+        }
+
+        if (!historyRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Histórico com ID " + id + " não encontrado.");
+        }
+
+        historyRepository.deleteById(id);
+    }
+
     private Set<String> getRoles(Authentication authentication) {
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -140,25 +197,11 @@ public class HistoryProjectionService {
                 .collect(Collectors.toSet());
     }
 
-    /**
-     * Extrai o ID do usuário do principal de autenticação.
-     * <p>
-     * Suporta dois formatos:
-     * <ul>
-     *   <li><b>CustomUserDetails</b>: extrai userId diretamente do objeto</li>
-     *   <li><b>String</b>: fallback para compatibilidade (authentication.getName() retorna ID numérico)</li>
-     * </ul>
-     *
-     * @param authentication objeto de autenticação
-     * @return ID do usuário
-     * @throws HistoryAccessDeniedException se ID não puder ser extraído ou for inválido
-     */
     private Long getUserIdFromAuthentication(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof CustomUserDetails) {
-            CustomUserDetails userDetails = (CustomUserDetails) principal;
-            return userDetails.getUserId();
+        if (principal instanceof CustomUserDetails userDetails) {
+            return userDetails.userId();
         }
 
         try {
@@ -166,7 +209,7 @@ public class HistoryProjectionService {
         } catch (NumberFormatException e) {
             throw new HistoryAccessDeniedException(
                     "Não foi possível extrair ID do usuário. " +
-                    "O principal deve ser CustomUserDetails ou getName() deve retornar um ID numérico."
+                            "O principal deve ser CustomUserDetails ou getName() deve retornar um ID numérico."
             );
         }
     }
