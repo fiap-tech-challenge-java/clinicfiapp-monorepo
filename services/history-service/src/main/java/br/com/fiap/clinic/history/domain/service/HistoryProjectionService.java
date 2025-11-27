@@ -73,7 +73,7 @@ public class HistoryProjectionService {
         }
 
         if (roles.contains(ROLE_patient)) {
-            Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
+            String authenticatedPatientId = getUserIdStringFromAuthentication(authentication);
             if (!Objects.equals(history.getPatientId(), authenticatedPatientId)) {
                 throw new HistoryAccessDeniedException("Paciente só pode visualizar o próprio histórico.");
             }
@@ -92,14 +92,14 @@ public class HistoryProjectionService {
         }
 
         if (roles.contains(ROLE_patient)) {
-            Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
+            String authenticatedPatientId = getUserIdStringFromAuthentication(authentication);
             return historyRepository.findByPatientId(authenticatedPatientId);
         }
 
         throw new HistoryAccessDeniedException("Acesso negado aos históricos.");
     }
 
-    public List<ProjectedAppointmentHistory> getHistoryForPatient(Long patientId) {
+    public List<ProjectedAppointmentHistory> getHistoryForPatient(String patientId) {
         if (patientId == null) {
             throw new IllegalArgumentException("O ID do paciente não pode ser nulo.");
         }
@@ -112,7 +112,7 @@ public class HistoryProjectionService {
         }
 
         if (roles.contains(ROLE_patient)) {
-            Long authenticatedPatientId = getUserIdFromAuthentication(authentication);
+            String authenticatedPatientId = getUserIdStringFromAuthentication(authentication);
 
             if (!Objects.equals(patientId, authenticatedPatientId)) {
                 throw new HistoryAccessDeniedException("Paciente só pode visualizar o próprio histórico.");
@@ -186,6 +186,14 @@ public class HistoryProjectionService {
         historyRepository.deleteById(id);
     }
 
+    @Transactional
+    public ProjectedAppointmentHistory createHistoryFromKafka(ProjectedAppointmentHistory history) {
+        if (history == null) {
+            throw new IllegalArgumentException("O histórico não pode ser nulo.");
+        }
+        return historyRepository.save(history);
+    }
+
     private Set<String> getRoles(Authentication authentication) {
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -197,20 +205,13 @@ public class HistoryProjectionService {
                 .collect(Collectors.toSet());
     }
 
-    private Long getUserIdFromAuthentication(Authentication authentication) {
+    private String getUserIdStringFromAuthentication(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 
         if (principal instanceof CustomUserDetails userDetails) {
-            return userDetails.userId();
+            return String.valueOf(userDetails.userId());
         }
 
-        try {
-            return Long.parseLong(authentication.getName());
-        } catch (NumberFormatException e) {
-            throw new HistoryAccessDeniedException(
-                    "Não foi possível extrair ID do usuário. " +
-                            "O principal deve ser CustomUserDetails ou getName() deve retornar um ID numérico."
-            );
-        }
+        return authentication.getName();
     }
 }

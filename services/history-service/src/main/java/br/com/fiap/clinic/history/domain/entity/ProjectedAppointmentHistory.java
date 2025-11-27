@@ -29,10 +29,10 @@ public class ProjectedAppointmentHistory {
     private Long id;
 
     @Column(name = "patient_id", nullable = false)
-    private Long patientId;
+    private String patientId;
 
     @Column(name = "doctor_id", nullable = false)
-    private Long doctorId;
+    private String doctorId;
 
     @Column(name = "doctor_name", nullable = false)
     private String doctorName;
