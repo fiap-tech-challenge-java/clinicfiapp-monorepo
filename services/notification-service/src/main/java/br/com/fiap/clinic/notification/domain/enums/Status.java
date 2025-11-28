@@ -1,12 +1,13 @@
 package br.com.fiap.clinic.notification.domain.enums;
 
-public enum NotificationType {
-    APPOINTMENT_REMINDER("Lembrete de Consulta"),
-    APPOINTMENT("Confirmação de Agendamento");
-
+public enum Status {
+    PENDING("Pendente de envio"),
+    SENT("Enviado"),
+    FAILED("Falha no envio");
+    
     private final String description;
 
-    NotificationType(String description) {
+    Status(String description) {
         this.description = description;
     }
 
@@ -14,4 +15,3 @@ public enum NotificationType {
         return description;
     }
 }
-

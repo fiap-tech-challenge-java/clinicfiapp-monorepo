@@ -1,6 +1,8 @@
 package br.com.fiap.clinic.notification.domain.entity;
 
+import br.com.fiap.clinic.notification.domain.enums.Channel;
 import br.com.fiap.clinic.notification.domain.enums.NotificationType;
+import br.com.fiap.clinic.notification.domain.enums.Status;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,11 +32,14 @@ public class Notification {
     @Column(name = "notification_type", nullable = false)
     private NotificationType notificationType;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String channel; // EMAIL, SMS, PUSH
+    private Channel channel;
 
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status; // PENDING, SENT, FAILED
+    private Status status;
 
     @Column
     private Integer attempts = 0;
@@ -47,4 +52,14 @@ public class Notification {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    public Notification(UUID appointmentId, UUID patientId, NotificationType notificationType,
+                              Channel channel, Status status, LocalDateTime scheduledFor) {
+        this.appointmentId = appointmentId;
+        this.patientId = patientId;
+        this.notificationType = notificationType;
+        this.channel = channel;
+        this.status = status;
+        this.scheduledFor = scheduledFor;
+    }
 }

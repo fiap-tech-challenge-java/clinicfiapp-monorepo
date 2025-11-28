@@ -33,7 +33,7 @@ public class NotificationTestController {
 
             // Gera o HTML do template
             String htmlContent = emailTemplateService.buildEmailTemplate(
-                NotificationType.AGENDAMENTO,
+                NotificationType.APPOINTMENT,
                 patientName,
                 doctorName,
                 doctorSpecialty,
@@ -76,7 +76,7 @@ public class NotificationTestController {
 
             // Gera o HTML do template
             String htmlContent = emailTemplateService.buildEmailTemplate(
-                NotificationType.LEMBRETE,
+                NotificationType.APPOINTMENT_REMINDER,
                 patientName,
                 doctorName,
                 doctorSpecialty,
