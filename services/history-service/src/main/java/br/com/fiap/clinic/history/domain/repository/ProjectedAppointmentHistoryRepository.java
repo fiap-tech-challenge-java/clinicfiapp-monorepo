@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface ProjectedAppointmentHistoryRepository extends JpaRepository<ProjectedAppointmentHistory, Long> {
     List<ProjectedAppointmentHistory> findByPatientId(String patientId);
-    List<ProjectedAppointmentHistory> findByDoctorId(String doctorId);
+
+    List<ProjectedAppointmentHistory> findByPatientNameContainingIgnoreCase(String patientName);
 }

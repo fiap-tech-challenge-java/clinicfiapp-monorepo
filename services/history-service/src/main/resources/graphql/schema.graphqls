@@ -1,0 +1,15 @@
+type Query {
+    history(patientId: ID, patientName: String): [ProjectedAppointmentHistory]
+}
+
+type ProjectedAppointmentHistory {
+    id: ID
+    patientId: String
+    doctorId: String
+    doctorName: String
+    patientName: String
+    startAt: String
+    status: String
+    lastAction: String
+    historyUpdatedAt: String
+}
