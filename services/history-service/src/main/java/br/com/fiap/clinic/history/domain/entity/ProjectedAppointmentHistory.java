@@ -14,6 +14,7 @@ import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "projected_appointment_history")
@@ -25,14 +26,14 @@ import java.time.LocalDateTime;
 public class ProjectedAppointmentHistory {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "patient_id", nullable = false)
-    private String patientId;
+    private UUID patientId;
 
     @Column(name = "doctor_id", nullable = false)
-    private String doctorId;
+    private UUID doctorId;
 
     @Column(name = "doctor_name", nullable = false)
     private String doctorName;

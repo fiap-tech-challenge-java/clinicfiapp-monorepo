@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -35,9 +36,26 @@ public class KafkaEventConsumer {
                 return;
             }
 
+            UUID patientUuid;
+            UUID doctorUuid;
+
+            try {
+                patientUuid = UUID.fromString(event.getPatientId());
+            } catch (IllegalArgumentException e) {
+                log.error("Erro ao converter patientId '{}' para UUID", event.getPatientId(), e);
+                return;
+            }
+
+            try {
+                doctorUuid = UUID.fromString(event.getDoctorId());
+            } catch (IllegalArgumentException e) {
+                log.error("Erro ao converter doctorId '{}' para UUID", event.getDoctorId(), e);
+                return;
+            }
+
             ProjectedAppointmentHistory history = new ProjectedAppointmentHistory();
-            history.setPatientId(event.getPatientId());
-            history.setDoctorId(event.getDoctorId());
+            history.setPatientId(patientUuid);
+            history.setDoctorId(doctorUuid);
             history.setDoctorName(event.getDoctorName());
             history.setPatientName(event.getPatientName());
             history.setStatus(event.getStatus());

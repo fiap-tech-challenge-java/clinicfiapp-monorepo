@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,12 +33,22 @@ public class HistoryProjectionService {
         String currentUserId = getUserIdStringFromAuthentication(authentication);
 
         if (roles.contains(ROLE_PATIENT)) {
-            return historyRepository.findByPatientId(currentUserId);
+            try {
+                UUID patientUuid = UUID.fromString(currentUserId);
+                return historyRepository.findByPatientId(patientUuid);
+            } catch (IllegalArgumentException e) {
+                throw new HistoryAccessDeniedException("ID do paciente inválido.");
+            }
         }
 
         if (roles.contains(ROLE_DOCTOR) || roles.contains(ROLE_NURSE)) {
             if (patientId != null && !patientId.isBlank()) {
-                return historyRepository.findByPatientId(patientId);
+                try {
+                    UUID patientUuid = UUID.fromString(patientId);
+                    return historyRepository.findByPatientId(patientUuid);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("ID do paciente inválido: " + patientId);
+                }
             }
             if (patientName != null && !patientName.isBlank()) {
                 return historyRepository.findByPatientNameContainingIgnoreCase(patientName);
