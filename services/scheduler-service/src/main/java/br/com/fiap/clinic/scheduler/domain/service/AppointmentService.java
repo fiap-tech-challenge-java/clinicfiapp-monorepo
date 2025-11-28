@@ -24,9 +24,10 @@ import java.util.UUID;
 public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
-    private final PatientRepository patientRepository;
-    private final DoctorRepository doctorRepository;
-    private final UserRepository userRepository;
+
+    private final PatientService patientService;
+    private final DoctorService doctorService;
+    private final UserService userService;
 
     private final OutboxEventRepository outboxEventRepository;
     private final AppointmentHistoryRepository appointmentHistoryRepository;
@@ -58,16 +59,31 @@ public class AppointmentService {
 
         validateDates(startAt, endAt);
 
-        Patient patient = patientRepository.findById(patientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + patientId));
+        Patient patient = patientService.findById(patientId);
         if (!patient.getIsActive()) throw new IllegalArgumentException("Paciente inativo");
 
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Médico não encontrado: " + doctorId));
+        Doctor doctor = doctorService.findById(doctorId);
         if (!doctor.getIsActive()) throw new IllegalArgumentException("Médico inativo");
 
-        User creator = userRepository.findById(createdByUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário criador não encontrado: " + createdByUserId));
+        User creator = userService.findById(createdByUserId);
+
+        List<Appointment> doctorConflicts = appointmentRepository.findDoctorConflictingAppointments(
+                doctor.getId(),
+                startAt,
+                endAt
+        );
+        if (!doctorConflicts.isEmpty()) {
+            throw new IllegalStateException("Médico já possui consulta agendada neste horário");
+        }
+
+        List<Appointment> patientConflicts = appointmentRepository.findPatientConflictingAppointments(
+                patient.getId(),
+                startAt,
+                endAt
+        );
+        if (!patientConflicts.isEmpty()) {
+            throw new IllegalStateException("Paciente já possui consulta agendada neste horário");
+        }
 
         Appointment appointment = new Appointment();
         appointment.setPatient(patient);
@@ -75,13 +91,13 @@ public class AppointmentService {
         appointment.setCreatedBy(creator);
         appointment.setStartAt(startAt);
         appointment.setEndAt(endAt);
-        appointment.setStatus(AppointmentStatus.SOLICITADO);
+        appointment.setStatus(AppointmentStatus.SCHEDULED);
         appointment.setActive(true);
 
         appointment = appointmentRepository.save(appointment);
 
         // 1. Salva Histórico (Log)
-        saveHistory(appointment, "CRIADO");
+        saveHistory(appointment, "CREATED");
         // 2. Envia Kafka (Outbox)
         createOutboxEvent(appointment, "AppointmentCreated");
 
@@ -94,15 +110,22 @@ public class AppointmentService {
     public Appointment confirmAppointment(UUID id) {
         Appointment appointment = findById(id);
 
-        if (appointment.getStatus() != AppointmentStatus.SOLICITADO) {
-            throw new IllegalStateException("Apenas consultas SOLICITADAS podem ser confirmadas");
+        // Validar se a consulta está ativa
+        validateAppointmentActive(appointment);
+
+        // Validar se a consulta ainda não iniciou
+        validateNotStarted(appointment);
+
+        if (appointment.getStatus() != AppointmentStatus.SCHEDULED &&
+            appointment.getStatus() != AppointmentStatus.RESCHEDULED) {
+            throw new IllegalStateException("Apenas consultas AGENDADAS ou REAGENDADAS podem ser confirmadas");
         }
 
-        appointment.setStatus(AppointmentStatus.CONFIRMADO);
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
         appointment = appointmentRepository.save(appointment);
 
         // 1. Salva Histórico (Log)
-        saveHistory(appointment, "CONFIRMADO");
+        saveHistory(appointment, "CONFIRMED");
         // 2. Envia Kafka (Outbox) - Notification vai mandar email de confirmação
         createOutboxEvent(appointment, "AppointmentConfirmed");
 
@@ -114,16 +137,22 @@ public class AppointmentService {
     public Appointment cancelAppointment(UUID id) {
         Appointment appointment = findById(id);
 
-        if (appointment.getStatus() == AppointmentStatus.REALIZADO ||
-                appointment.getStatus() == AppointmentStatus.CANCELADO) {
+        // Validar se a consulta está ativa
+        validateAppointmentActive(appointment);
+
+        // Validar prazo mínimo para cancelamento (24 horas)
+        validateCancellationDeadline(appointment);
+
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
+                appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new IllegalStateException("Não é possível cancelar consultas já realizadas ou canceladas");
         }
 
-        appointment.setStatus(AppointmentStatus.CANCELADO);
+        appointment.setStatus(AppointmentStatus.CANCELLED);
         appointment = appointmentRepository.save(appointment);
 
         // 1. Salva Histórico (Log)
-        saveHistory(appointment, "CANCELADO");
+        saveHistory(appointment, "CANCELLED");
         // 2. Envia Kafka (Outbox) - Notification pode mandar email de cancelamento
         createOutboxEvent(appointment, "AppointmentCancelled");
 
@@ -135,15 +164,15 @@ public class AppointmentService {
     public Appointment completeAppointment(UUID id) {
         Appointment appointment = findById(id);
 
-        if (appointment.getStatus() != AppointmentStatus.CONFIRMADO) {
+        if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
             throw new IllegalStateException("Apenas consultas CONFIRMADAS podem ser finalizadas");
         }
 
-        appointment.setStatus(AppointmentStatus.REALIZADO);
+        appointment.setStatus(AppointmentStatus.COMPLETED);
         appointment = appointmentRepository.save(appointment);
 
         // 1. Salva Histórico (Log)
-        saveHistory(appointment, "REALIZADO");
+        saveHistory(appointment, "COMPLETED");
         // 2. Envia Kafka (Outbox)
         createOutboxEvent(appointment, "AppointmentCompleted");
 
@@ -155,22 +184,46 @@ public class AppointmentService {
     public Appointment rescheduleAppointment(UUID id, OffsetDateTime newStart, OffsetDateTime newEnd) {
         Appointment appointment = findById(id);
 
-        if (appointment.getStatus() == AppointmentStatus.REALIZADO ||
-                appointment.getStatus() == AppointmentStatus.CANCELADO) {
+        // Validar se a consulta está ativa
+        validateAppointmentActive(appointment);
+
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
+                appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new IllegalStateException("Não é possível reagendar consultas realizadas ou canceladas");
         }
 
         validateDates(newStart, newEnd);
 
+        List<Appointment> doctorConflicts = appointmentRepository.findDoctorConflictingAppointments(
+                appointment.getDoctor().getId(),
+                newStart,
+                newEnd
+        );
+        // Remover a própria consulta da lista de conflitos
+        doctorConflicts.removeIf(a -> a.getId().equals(id));
+        if (!doctorConflicts.isEmpty()) {
+            throw new IllegalStateException("Médico já possui consulta agendada no novo horário");
+        }
+
+        List<Appointment> patientConflicts = appointmentRepository.findPatientConflictingAppointments(
+                appointment.getPatient().getId(),
+                newStart,
+                newEnd
+        );
+        // Remover a própria consulta da lista de conflitos
+        patientConflicts.removeIf(a -> a.getId().equals(id));
+        if (!patientConflicts.isEmpty()) {
+            throw new IllegalStateException("Paciente já possui consulta agendada no novo horário");
+        }
+
         appointment.setStartAt(newStart);
         appointment.setEndAt(newEnd);
-        // Opcional: Voltar para SOLICITADO se a regra de negócio exigir nova aprovação
-        // appointment.setStatus(AppointmentStatus.SOLICITADO);
+        appointment.setStatus(AppointmentStatus.RESCHEDULED);
 
         appointment = appointmentRepository.save(appointment);
 
-        // 1. Salva Histórico (Log) - Isso responde sua pergunta: SIM, estamos salvando log na atualização!
-        saveHistory(appointment, "REAGENDADO");
+        // 1. Salva Histórico (Log)
+        saveHistory(appointment, "RESCHEDULED");
         // 2. Envia Kafka (Outbox)
         createOutboxEvent(appointment, "AppointmentRescheduled");
 
@@ -190,8 +243,65 @@ public class AppointmentService {
     // --- MÉTODOS AUXILIARES ---
 
     private void validateDates(OffsetDateTime start, OffsetDateTime end) {
-        if (start.isAfter(end)) throw new IllegalArgumentException("Início deve ser antes do fim");
-        if (start.isBefore(OffsetDateTime.now())) throw new IllegalArgumentException("Data no passado não permitida");
+        // 1. Data fim deve ser após início
+        if (start.isAfter(end) || start.isEqual(end)) {
+            throw new IllegalArgumentException("Data de início deve ser antes da data de fim");
+        }
+
+        // 2. Antecedência mínima de 1 hora
+        OffsetDateTime minimumAllowedTime = OffsetDateTime.now().plusHours(1);
+        if (start.isBefore(minimumAllowedTime)) {
+            throw new IllegalArgumentException("Agendamento deve ser feito com pelo menos 1 hora de antecedência");
+        }
+
+        // 3. Validar horário comercial (8h às 18h)
+        int startHour = start.getHour();
+        int endHour = end.getHour();
+        int endMinute = end.getMinute();
+
+        if (startHour < 8 || startHour >= 18) {
+            throw new IllegalArgumentException("Horário de início deve estar entre 8h e 18h");
+        }
+
+        // Permite terminar às 18h (18:00), mas não depois
+        if (endHour > 18 || (endHour == 18 && endMinute > 0)) {
+            throw new IllegalArgumentException("Horário de término deve ser até 18h");
+        }
+
+        // 4. Validar dias úteis (segunda a sexta)
+        int dayOfWeek = start.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
+        if (dayOfWeek == 6 || dayOfWeek == 7) { // Sábado ou Domingo
+            throw new IllegalArgumentException("Agendamentos são permitidos apenas em dias úteis (segunda a sexta)");
+        }
+
+        // 5. Validar duração da consulta (mínimo 15 min, máximo 4 horas)
+        long durationMinutes = java.time.Duration.between(start, end).toMinutes();
+        if (durationMinutes < 15) {
+            throw new IllegalArgumentException("Duração mínima da consulta é 15 minutos");
+        }
+        if (durationMinutes > 240) { // 4 horas
+            throw new IllegalArgumentException("Duração máxima da consulta é 4 horas");
+        }
+    }
+
+    private void validateNotStarted(Appointment appointment) {
+        OffsetDateTime now = OffsetDateTime.now();
+        if (appointment.getStartAt().isBefore(now) || appointment.getStartAt().isEqual(now)) {
+            throw new IllegalStateException("Não é possível confirmar consulta que já iniciou ou está em andamento");
+        }
+    }
+
+    private void validateCancellationDeadline(Appointment appointment) {
+        OffsetDateTime minimumCancellationTime = OffsetDateTime.now().plusHours(24);
+        if (appointment.getStartAt().isBefore(minimumCancellationTime)) {
+            throw new IllegalStateException("Cancelamento deve ser feito com pelo menos 24 horas de antecedência");
+        }
+    }
+
+    private void validateAppointmentActive(Appointment appointment) {
+        if (!appointment.isActive()) {
+            throw new IllegalStateException("Operação não permitida: consulta está inativa");
+        }
     }
 
     private void saveHistory(Appointment appointment, String action) {
@@ -204,7 +314,6 @@ public class AppointmentService {
             snapshot.put("status", appointment.getStatus());
             snapshot.put("startAt", appointment.getStartAt().toString());
             snapshot.put("endAt", appointment.getEndAt().toString());
-            // Adicionar mais campos se necessário para auditoria
 
             history.setSnapshot(objectMapper.writeValueAsString(snapshot));
             appointmentHistoryRepository.save(history);
@@ -223,15 +332,12 @@ public class AppointmentService {
 
             // DADOS DO PACIENTE
             payload.put("patientId", appointment.getPatient().getId());
-            // Atenção: Verifique se sua entidade Patient tem getName()/getEmail() herdados de User ou se precisa de .getUser().getName()
-            // Assumindo que Patient estende User ou delega:
             payload.put("patientName", appointment.getPatient().getName());
             payload.put("patientEmail", appointment.getPatient().getEmail());
 
             // DADOS DO MÉDICO
-            // IMPORTANTE: Aqui estava o erro! O consumer precisa do 'doctorSpecialty'.
             payload.put("doctorName", appointment.getDoctor().getName());
-            payload.put("doctorSpecialty", appointment.getDoctor().getSpecialty()); // <--- CAMPO OBRIGATÓRIO PARA O NOTIFICATION
+            payload.put("doctorSpecialty", appointment.getDoctor().getSpecialty());
 
             // DATAS
             payload.put("appointmentDate", appointment.getStartAt().toString());
@@ -246,7 +352,6 @@ public class AppointmentService {
             log.info("Evento Outbox salvo com sucesso: {}", eventType);
         } catch (Exception e) {
             log.error("Erro CRÍTICO ao criar evento Outbox. O Kafka não receberá esta mensagem!", e);
-            // Em produção, lançar exceção para rollback
             throw new RuntimeException("Erro ao gerar evento de integração", e);
         }
     }

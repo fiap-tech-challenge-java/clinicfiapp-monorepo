@@ -12,8 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +36,9 @@ public class AppointmentReminderService {
         log.info("Iniciando envio de lembretes diários de consultas");
         
         // Define o período para buscar consultas (próximas 24 horas)
-        LocalDateTime tomorrow = LocalDate.now().plusDays(1).atStartOfDay();
-        LocalDateTime endOfTomorrow = tomorrow.with(LocalTime.MAX);
-        
+        OffsetDateTime tomorrow = LocalDate.now().plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime endOfTomorrow = tomorrow.with(LocalTime.MAX);
+
         // Busca todas as consultas do dia seguinte
         List<Appointment> appointments = appointmentRepository.findAppointmentsForReminder(
             tomorrow, 
@@ -81,8 +82,8 @@ public class AppointmentReminderService {
             event.setEventType("AppointmentReminderRequested");
             event.setPayload(objectMapper.writeValueAsString(payload));
             event.setProcessed(false);
-            event.setCreatedAt(LocalDateTime.now());
-            
+            // createdAt é definido automaticamente pelo @PrePersist
+
             outboxEventRepository.save(event);
             
         } catch (Exception e) {

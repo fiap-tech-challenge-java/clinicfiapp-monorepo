@@ -65,10 +65,11 @@ type User {
 }
 
 enum AppointmentStatus {
-    SOLICITADO
-    CONFIRMADO
-    CANCELADO
-    REALIZADO
+    SCHEDULED
+    RESCHEDULED
+    CONFIRMED
+    CANCELLED
+    COMPLETED
 }
 
 # --- Inputs ---
