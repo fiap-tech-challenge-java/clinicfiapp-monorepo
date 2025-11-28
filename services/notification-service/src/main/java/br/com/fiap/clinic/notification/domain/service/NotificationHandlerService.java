@@ -44,6 +44,11 @@ public class NotificationHandlerService {
 
         notificationRepository.save(notificationEntity);
 
+        LocalDateTime appointmentDate = LocalDateTime.parse(
+                appointmentEvent.appointmentDate(),
+                java.time.format.DateTimeFormatter.ISO_DATE_TIME
+        );
+
         try {
             // Envia o email com template HTML bonitinho
             emailService.sendEmail(
@@ -52,7 +57,7 @@ public class NotificationHandlerService {
                     appointmentEvent.patientName(),
                     appointmentEvent.doctorName(),
                     appointmentEvent.doctorSpecialty(),
-                    appointmentEvent.appointmentDate()
+                    appointmentDate
             );
 
             // Atualiza o status após o envio
@@ -89,6 +94,11 @@ public class NotificationHandlerService {
 
         notificationRepository.save(notificationEntity);
 
+        LocalDateTime appointmentDate = LocalDateTime.parse(
+                appointmentEvent.appointmentDate(),
+                java.time.format.DateTimeFormatter.ISO_DATE_TIME
+        );
+
         try {
             // Envia o email com template HTML bonitinho
             emailService.sendEmail(
@@ -97,7 +107,7 @@ public class NotificationHandlerService {
                     appointmentEvent.patientName(),
                     appointmentEvent.doctorName(),
                     appointmentEvent.doctorSpecialty(),
-                    appointmentEvent.appointmentDate()
+                    appointmentDate
             );
 
             // Atualiza o status após o envio

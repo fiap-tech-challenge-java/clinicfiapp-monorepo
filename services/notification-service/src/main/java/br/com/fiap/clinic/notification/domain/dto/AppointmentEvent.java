@@ -8,8 +8,9 @@ public record AppointmentEvent(
         UUID patientId,
         String patientName,
         String patientEmail,
+        String doctorId,
         String doctorName,
         String doctorSpecialty,
-        LocalDateTime appointmentDate
+        String appointmentDate
 ) {
 }

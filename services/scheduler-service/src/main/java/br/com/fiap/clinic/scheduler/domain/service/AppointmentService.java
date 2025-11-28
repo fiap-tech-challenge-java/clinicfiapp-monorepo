@@ -338,6 +338,7 @@ public class AppointmentService {
             // DADOS DO MÉDICO
             payload.put("doctorName", appointment.getDoctor().getName());
             payload.put("doctorSpecialty", appointment.getDoctor().getSpecialty());
+            payload.put("doctorId", appointment.getDoctor().getId());
 
             // DATAS
             payload.put("appointmentDate", appointment.getStartAt().toString());
