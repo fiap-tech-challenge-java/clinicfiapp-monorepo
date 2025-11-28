@@ -1,0 +1,88 @@
+# scalar DateTime
+
+type Query {
+
+    # Consultas de Agendamento
+    appointments: [Appointment]
+    appointment(id: ID!): Appointment
+    appointmentsByStatus(status: AppointmentStatus!): [Appointment]
+
+    # Consultas de Histórico
+    appointmentHistory(appointmentId: ID!): [AppointmentHistory]
+}
+
+type Mutation {
+    # Criação
+    createAppointment(input: CreateAppointmentInput!): Appointment!
+
+    # Ações de Negócio (Workflow)
+    confirmAppointment(id: ID!): Appointment!
+    cancelAppointment(id: ID!): Appointment!
+    completeAppointment(id: ID!): Appointment!
+
+    # Reagendamento
+    rescheduleAppointment(input: RescheduleAppointmentInput!): Appointment!
+}
+
+# --- Tipos (Types) ---
+
+type Appointment {
+    id: ID!
+    patient: Patient!
+    doctor: Doctor!
+    createdBy: User!
+    startAt: String!
+    endAt: String!
+    status: AppointmentStatus!
+    active: Boolean!
+    createdAt: String!
+}
+
+type AppointmentHistory {
+    id: ID!
+    action: String!
+    snapshot: String! # JSON
+    eventTime: String!
+}
+
+type Patient {
+    id: ID!
+    name: String!
+    email: String!
+}
+
+type Doctor {
+    id: ID!
+    name: String!
+    crm: String!
+    specialty: String!
+}
+
+type User {
+    id: ID!
+    name: String!
+    login: String!
+}
+
+enum AppointmentStatus {
+    SCHEDULED
+    RESCHEDULED
+    CONFIRMED
+    CANCELLED
+    COMPLETED
+}
+
+# --- Inputs ---
+
+input CreateAppointmentInput {
+    patientId: ID!
+    doctorId: ID!
+    startAt: String! # Formato ISO-8601 (ex: "2024-12-01T14:00:00-03:00")
+    endAt: String!
+}
+
+input RescheduleAppointmentInput {
+    appointmentId: ID!
+    newStartAt: String!
+    newEndAt: String!
+}
