@@ -6,6 +6,8 @@ import br.com.fiap.clinic.scheduler.domain.entity.AppointmentStatus;
 import br.com.fiap.clinic.scheduler.domain.entity.User;
 import br.com.fiap.clinic.scheduler.domain.repository.UserRepository;
 import br.com.fiap.clinic.scheduler.domain.service.AppointmentService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -29,16 +31,28 @@ public class AppointmentGraphQLController {
     private final UserRepository userRepository;
 
     // --- Records para Inputs (DTOs) ---
-    record CreateAppointmentInput(String patientId, String doctorId, String startAt, String endAt) {}
-    record RescheduleAppointmentInput(String appointmentId, String newStartAt, String newEndAt) {}
+
+    record CreateAppointmentInput(
+            @NotBlank(message = "ID do paciente é obrigatório") String patientId,
+            @NotBlank(message = "ID do médico é obrigatório") String doctorId,
+            @NotNull(message = "Data de início é obrigatória") String startAt,
+            @NotNull(message = "Data de término é obrigatória") String endAt
+    ) {}
+
+    record RescheduleAppointmentInput(
+            @NotBlank String appointmentId,
+            @NotNull String newStartAt,
+            @NotNull String newEndAt
+    ) {}
+
 
     // --- QUERIES ---
 
     @QueryMapping
     @Secured({"ROLE_doctor", "ROLE_nurse", "ROLE_patient"})
     public List<Appointment> appointments() {
-        // TODO: Em produção, filtrar por usuário logado se for PACIENTE
-        return appointmentService.findAll();
+        User user = getCurrentUser();
+        return appointmentService.findAll(user);
     }
 
     @QueryMapping

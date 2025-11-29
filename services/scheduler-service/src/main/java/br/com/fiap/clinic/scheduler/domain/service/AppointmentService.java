@@ -35,7 +35,16 @@ public class AppointmentService {
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public List<Appointment> findAll() {
+    public List<Appointment> findAll(User user) {
+
+        if (user.getRole() == Role.patient) {
+            return appointmentRepository.findByPatient_IdAndIsActiveTrue(user.getId());
+        }
+
+        if (user.getRole() == Role.doctor) {
+            return appointmentRepository.findByDoctor_IdAndIsActiveTrue(user.getId());
+        }
+
         return appointmentRepository.findAll();
     }
 
