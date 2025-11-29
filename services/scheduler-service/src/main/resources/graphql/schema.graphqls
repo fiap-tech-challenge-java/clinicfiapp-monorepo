@@ -12,6 +12,8 @@ type Query {
 }
 
 type Mutation {
+    login(input: LoginInput!): AuthPayload!
+
     # Criação
     createAppointment(input: CreateAppointmentInput!): Appointment!
 
@@ -22,9 +24,15 @@ type Mutation {
 
     # Reagendamento
     rescheduleAppointment(input: RescheduleAppointmentInput!): Appointment!
+
 }
 
 # --- Tipos (Types) ---
+
+type AuthPayload {
+    token: String!
+    type: String!
+}
 
 type Appointment {
     id: ID!
@@ -73,6 +81,11 @@ enum AppointmentStatus {
 }
 
 # --- Inputs ---
+
+input LoginInput {
+    login: String!
+    password: String!
+}
 
 input CreateAppointmentInput {
     patientId: ID!

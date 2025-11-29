@@ -38,7 +38,7 @@ public class AppointmentReminderService {
         // Define o período para buscar consultas (próximas 24 horas)
         OffsetDateTime tomorrow = LocalDate.now().plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime endOfTomorrow = tomorrow.with(LocalTime.MAX);
-
+        
         // Busca todas as consultas do dia seguinte
         List<Appointment> appointments = appointmentRepository.findAppointmentsForReminder(
             tomorrow, 
@@ -83,7 +83,7 @@ public class AppointmentReminderService {
             event.setPayload(objectMapper.writeValueAsString(payload));
             event.setProcessed(false);
             // createdAt é definido automaticamente pelo @PrePersist
-
+            
             outboxEventRepository.save(event);
             
         } catch (Exception e) {

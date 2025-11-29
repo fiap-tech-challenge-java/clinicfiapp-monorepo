@@ -11,7 +11,7 @@ import java.util.Collection;
  * Esta classe é usada para armazenar o ID numérico do usuário no contexto de segurança,
  * permitindo controle de acesso baseado no ID do paciente/médico/enfermeiro.
  */
-public record CustomUserDetails(Long userId, String username,
+public record CustomUserDetails(java.util.UUID userId, String username,
                                 Collection<? extends GrantedAuthority> authorities) implements UserDetails {
 
     @Override
