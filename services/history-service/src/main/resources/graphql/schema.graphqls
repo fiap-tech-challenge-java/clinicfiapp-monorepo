@@ -1,5 +1,12 @@
+# Adicionamos novos filtros opcionais
 type Query {
-    history(patientId: ID, patientName: String): [ProjectedAppointmentHistory]
+    history(
+        patientId: ID,
+        patientName: String,
+        doctorId: ID,
+        date: String, # Formato YYYY-MM-DD
+        status: String
+    ): [ProjectedAppointmentHistory]
 }
 
 type ProjectedAppointmentHistory {
