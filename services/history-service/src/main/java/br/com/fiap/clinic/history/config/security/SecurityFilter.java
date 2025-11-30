@@ -33,12 +33,12 @@ public class SecurityFilter extends OncePerRequestFilter {
                 String role = decodedJWT.getClaim("role").asString();
                 String userId = decodedJWT.getClaim("userId").asString();
 
-                // Monta o usuário apenas com dados do Token (Sem DB!)
-                // Usamos o CustomUserDetails que já existe no seu projeto, ajustado para ID String/UUID
+                var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
+
                 CustomUserDetails user = new CustomUserDetails(
                         UUID.fromString(userId), // Converte String do token para UUID
                         login,
-                        Collections.singletonList(new SimpleGrantedAuthority(role))
+                        authorities
                 );
 
                 var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());

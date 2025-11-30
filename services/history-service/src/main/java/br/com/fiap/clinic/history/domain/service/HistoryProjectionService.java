@@ -4,8 +4,10 @@ import br.com.fiap.clinic.history.config.security.CustomUserDetails;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
 import br.com.fiap.clinic.history.domain.repository.ProjectedAppointmentHistoryRepository;
 import br.com.fiap.clinic.history.exception.HistoryAccessDeniedException;
+import jakarta.persistence.criteria.Predicate; // <--- Importante
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.jpa.domain.Specification; // <--- Importante
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,7 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -47,8 +49,9 @@ public class HistoryProjectionService {
         UUID currentUserId = UUID.fromString(currentUserIdStr);
 
         // --- REGRA 1: PACIENTE ---
-        // Paciente só vê suas próprias consultas, ignorando outros filtros de ID
+        // Paciente só vê suas próprias consultas
         if (roles.contains(ROLE_PATIENT)) {
+            // Usa Specification aqui também para manter padrão, ou o método findByPatientId
             return historyRepository.findByPatientId(currentUserId);
         }
 
@@ -65,7 +68,7 @@ public class HistoryProjectionService {
                 targetDoctorId = currentUserId;
             }
 
-            // Tratamento da Data (String "YYYY-MM-DD" -> Intervalo do dia)
+            // Tratamento da Data
             if (dateStr != null && !dateStr.isBlank()) {
                 try {
                     LocalDate date = LocalDate.parse(dateStr);
@@ -76,25 +79,49 @@ public class HistoryProjectionService {
                 }
             }
 
-            // Tratamento busca por nome (Se tiver nome, a busca customizada pode ser complexa,
-            // então mantemos a busca simples por nome OU a busca customizada pelos outros campos)
-            if (patientName != null && !patientName.isBlank()) {
-                return historyRepository.findByPatientNameContainingIgnoreCase(patientName);
-            }
+            final UUID finalPatientId = targetPatientId;
+            final UUID finalDoctorId = targetDoctorId;
+            final LocalDateTime finalStartAt = startAt;
+            final LocalDateTime finalEndAt = endAt;
+            final String finalPatientName = patientName;
 
-            // Busca usando a Query Dinâmica no Repositório
-            return historyRepository.findCustom(
-                    targetPatientId,
-                    targetDoctorId,
-                    status,
-                    startAt,
-                    endAt
-            );
+            Specification<ProjectedAppointmentHistory> spec = (root, query, cb) -> {
+                List<Predicate> predicates = new ArrayList<>();
+
+                if (finalPatientId != null) {
+                    predicates.add(cb.equal(root.get("patientId"), finalPatientId));
+                }
+
+                if (finalPatientName != null && !finalPatientName.isBlank()) {
+                    predicates.add(cb.like(cb.lower(root.get("patientName")), "%" + finalPatientName.toLowerCase() + "%"));
+                }
+
+                if (finalDoctorId != null) {
+                    predicates.add(cb.equal(root.get("doctorId"), finalDoctorId));
+                }
+
+                if (status != null && !status.isBlank()) {
+                    predicates.add(cb.equal(root.get("status"), status));
+                }
+
+                if (finalStartAt != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("startAt"), finalStartAt));
+                }
+
+                if (finalEndAt != null) {
+                    predicates.add(cb.lessThanOrEqualTo(root.get("startAt"), finalEndAt));
+                }
+
+                return cb.and(predicates.toArray(new Predicate[0]));
+            };
+
+            return historyRepository.findAll(spec);
         }
 
         throw new HistoryAccessDeniedException("Acesso negado ao histórico de consultas.");
     }
 
+    // ... métodos auxiliares (parseUUID, getRoles, etc.) mantêm-se iguais ...
     private UUID parseUUID(String uuidStr) {
         if (uuidStr == null || uuidStr.isBlank()) return null;
         try {
@@ -103,8 +130,6 @@ public class HistoryProjectionService {
             throw new IllegalArgumentException("ID inválido: " + uuidStr);
         }
     }
-
-    // ... (Métodos getRoles, getUserIdStringFromAuthentication e createHistoryFromKafka mantêm-se iguais)
 
     private Set<String> getRoles(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
