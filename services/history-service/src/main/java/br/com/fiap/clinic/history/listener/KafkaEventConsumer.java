@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
@@ -24,7 +26,7 @@ public class KafkaEventConsumer {
     public void listen(AppointmentEventConsumer event) {
         try {
             log.info("Recebido evento do tópico {}: patientId={}, doctorId={}, eventType={}",
-                KafkaConfig.TOPIC_NAME, event.getPatientId(), event.getDoctorId(), event.getEventType());
+                    KafkaConfig.TOPIC_NAME, event.getPatientId(), event.getDoctorId(), event.getEventType());
 
             if (event.getPatientId() == null || event.getPatientId().isEmpty()) {
                 log.warn("Evento ignorado: patientId é obrigatório");
@@ -61,25 +63,28 @@ public class KafkaEventConsumer {
             history.setStatus(event.getStatus());
             history.setLastAction(event.getEventType());
 
-            if (event.getTimestamp() != null && !event.getTimestamp().isEmpty()) {
+            if (event.getAppointmentDate() != null && !event.getAppointmentDate().isEmpty()) {
                 try {
-                    history.setStartAt(LocalDateTime.parse(event.getTimestamp(), DateTimeFormatter.ISO_DATE_TIME));
+                    OffsetDateTime offsetDateTime = OffsetDateTime.parse(event.getAppointmentDate(), DateTimeFormatter.ISO_DATE_TIME);
+                    ZonedDateTime brasiliaDateTime = offsetDateTime.atZoneSameInstant(ZoneId.of("America/Sao_Paulo"));
+                    history.setStartAt(brasiliaDateTime.toOffsetDateTime());
                 } catch (DateTimeParseException e) {
-                    log.warn("Erro ao parsear timestamp '{}'. Usando LocalDateTime.now()", event.getTimestamp());
-                    history.setStartAt(LocalDateTime.now());
+                    log.error("Erro ao parsear appointmentDate '{}'. Evento ignorado.", event.getAppointmentDate(), e);
+                    return;
                 }
             } else {
-                history.setStartAt(LocalDateTime.now());
+                log.error("appointmentDate é obrigatório. Evento ignorado.");
+                return;
             }
 
             historyService.createHistoryFromKafka(history);
 
-            log.info("Histórico salvo com sucesso: patientId={}, doctorId={}",
-                event.getPatientId(), event.getDoctorId());
+            log.info("Histórico salvo com sucesso: patientId={}, doctorId={}, startAt={}",
+                    event.getPatientId(), event.getDoctorId(), history.getStartAt());
 
         } catch (Exception e) {
             log.error("Erro ao processar mensagem do Kafka: patientId={}, doctorId={}, eventType={}",
-                event.getPatientId(), event.getDoctorId(), event.getEventType(), e);
+                    event.getPatientId(), event.getDoctorId(), event.getEventType(), e);
         }
     }
 }

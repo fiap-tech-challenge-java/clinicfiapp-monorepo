@@ -17,4 +17,5 @@ public class AppointmentEventConsumer {
     private String status;
     private String eventType;
     private String timestamp;
+    private String appointmentDate;
 }
