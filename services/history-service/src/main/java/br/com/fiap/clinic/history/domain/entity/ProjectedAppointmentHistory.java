@@ -14,6 +14,7 @@ import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -42,7 +43,7 @@ public class ProjectedAppointmentHistory {
     private String patientName;
 
     @Column(name = "start_at")
-    private LocalDateTime startAt;
+    private OffsetDateTime startAt;
 
     @Column(name = "status")
     private String status;

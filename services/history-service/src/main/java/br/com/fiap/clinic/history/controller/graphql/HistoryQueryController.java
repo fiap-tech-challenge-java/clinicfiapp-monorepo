@@ -22,7 +22,13 @@ public class HistoryQueryController {
 
     @QueryMapping
     @Secured({ROLE_PATIENT, ROLE_DOCTOR, ROLE_NURSE})
-    public List<ProjectedAppointmentHistory> history(@Argument String patientId, @Argument String patientName) {
-        return historyService.getHistory(patientId, patientName);
+    public List<ProjectedAppointmentHistory> history(
+            @Argument String patientId,
+            @Argument String patientName,
+            @Argument String doctorId,
+            @Argument String date,
+            @Argument String status
+    ) {
+        return historyService.getHistory(patientId, patientName, doctorId, date, status);
     }
 }
