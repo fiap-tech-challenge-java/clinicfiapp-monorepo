@@ -20,7 +20,4 @@ public class Patient extends User {
 
     @Column(name = "birth_date")
     private LocalDate birthDate;
-
-    @Column(name = "is_active")
-    private Boolean isActive = true;
 }

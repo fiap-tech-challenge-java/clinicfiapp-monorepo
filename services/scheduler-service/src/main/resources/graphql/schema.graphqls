@@ -9,6 +9,18 @@ type Query {
 
     # Consultas de Histórico
     appointmentHistory(appointmentId: ID!): [AppointmentHistory]
+
+    # Consultas de Pacientes
+    patients: [Patient]
+    patient(id: ID!): Patient
+
+    # Consultas de Médicos
+    doctors: [Doctor]
+    doctor(id: ID!): Doctor
+
+    # Consultas de Enfermeiros
+    nurses: [Nurse]
+    nurse(id: ID!): Nurse
 }
 
 type Mutation {
@@ -24,6 +36,21 @@ type Mutation {
 
     # Reagendamento
     rescheduleAppointment(input: RescheduleAppointmentInput!): Appointment!
+
+    # Gerenciamento de Pacientes
+    createPatient(input: CreatePatientInput!): Patient!
+    updatePatient(id: ID!, input: UpdatePatientInput!): Patient!
+    deactivatePatient(id: ID!): Boolean!
+
+    # Gerenciamento de Médicos
+    createDoctor(input: CreateDoctorInput!): Doctor!
+    updateDoctor(id: ID!, input: UpdateDoctorInput!): Doctor!
+    deactivateDoctor(id: ID!): Boolean!
+
+    # Gerenciamento de Enfermeiros
+    createNurse(input: CreateNurseInput!): Nurse!
+    updateNurse(id: ID!, input: UpdateNurseInput!): Nurse!
+    deactivateNurse(id: ID!): Boolean!
 
 }
 
@@ -57,13 +84,27 @@ type Patient {
     id: ID!
     name: String!
     email: String!
+    login: String!
+    birthDate: String
+    isActive: Boolean!
 }
 
 type Doctor {
     id: ID!
     name: String!
+    email: String!
+    login: String!
     crm: String!
     specialty: String!
+    isActive: Boolean!
+}
+
+type Nurse {
+    id: ID!
+    name: String!
+    email: String!
+    login: String!
+    isActive: Boolean!
 }
 
 type User {
@@ -98,4 +139,55 @@ input RescheduleAppointmentInput {
     appointmentId: ID!
     newStartAt: String!
     newEndAt: String!
+}
+
+# Inputs para Pacientes
+input CreatePatientInput {
+    name: String!
+    email: String!
+    login: String!
+    password: String!
+    birthDate: String
+}
+
+input UpdatePatientInput {
+    name: String
+    email: String
+    login: String
+    birthDate: String
+    isActive: Boolean
+}
+
+# Inputs para Médicos
+input CreateDoctorInput {
+    name: String!
+    email: String!
+    login: String!
+    password: String!
+    crm: String!
+    specialty: String!
+}
+
+input UpdateDoctorInput {
+    name: String
+    email: String
+    login: String
+    crm: String
+    specialty: String
+    isActive: Boolean
+}
+
+# Inputs para Enfermeiros
+input CreateNurseInput {
+    name: String!
+    email: String!
+    login: String!
+    password: String!
+}
+
+input UpdateNurseInput {
+    name: String
+    email: String
+    login: String
+    isActive: Boolean
 }

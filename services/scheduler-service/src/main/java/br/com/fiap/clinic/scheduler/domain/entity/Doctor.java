@@ -21,7 +21,4 @@ public class Doctor extends User {
 
     @Column(nullable = false)
     private String specialty;
-
-    @Column(name = "is_active")
-    private Boolean isActive = true;
 }

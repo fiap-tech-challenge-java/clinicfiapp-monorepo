@@ -69,10 +69,10 @@ public class AppointmentService {
         validateDates(startAt, endAt);
 
         Patient patient = patientService.findById(patientId);
-        if (!patient.getIsActive()) throw new IllegalArgumentException("Paciente inativo");
+        if (!patient.isActive()) throw new IllegalArgumentException("Paciente inativo");
 
         Doctor doctor = doctorService.findById(doctorId);
-        if (!doctor.getIsActive()) throw new IllegalArgumentException("Médico inativo");
+        if (!doctor.isActive()) throw new IllegalArgumentException("Médico inativo");
 
         User creator = userService.findById(createdByUserId);
 

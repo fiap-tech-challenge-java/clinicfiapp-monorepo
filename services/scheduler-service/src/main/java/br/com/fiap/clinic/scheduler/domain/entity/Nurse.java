@@ -12,10 +12,6 @@ import lombok.NoArgsConstructor;
 @DiscriminatorValue("nurse")
 @Data
 @EqualsAndHashCode(callSuper = true)
-@NoArgsConstructor
-@AllArgsConstructor
 public class Nurse extends User {
-
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    // Sem campos adicionais, usa apenas os campos herdados de User
 }

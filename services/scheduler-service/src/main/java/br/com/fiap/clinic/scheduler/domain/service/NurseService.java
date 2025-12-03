@@ -78,6 +78,16 @@ public class NurseService {
     public Nurse update(UUID userId, Nurse nurseDetails) {
         Nurse nurse = findById(userId);
 
+        if (nurseDetails.getName() != null) {
+            nurse.setName(nurseDetails.getName());
+        }
+        if (nurseDetails.getEmail() != null) {
+            nurse.setEmail(nurseDetails.getEmail());
+        }
+        if (nurseDetails.getLogin() != null) {
+            nurse.setLogin(nurseDetails.getLogin());
+        }
+        // isActive agora é herdado de User e é boolean (não Boolean)
         nurse.setActive(nurseDetails.isActive());
 
         return nurseRepository.save(nurse);
