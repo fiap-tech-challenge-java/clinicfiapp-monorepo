@@ -83,7 +83,7 @@ public class DoctorService {
         doctor.setLogin(doctorDetails.getLogin());
         doctor.setCrm(doctorDetails.getCrm());
         doctor.setSpecialty(doctorDetails.getSpecialty());
-        doctor.setIsActive(doctorDetails.getIsActive());
+        doctor.setActive(doctorDetails.isActive());
 
         return doctorRepository.save(doctor);
     }
@@ -97,7 +97,7 @@ public class DoctorService {
     @Transactional
     public void deactivate(UUID id) {
         Doctor doctor = findById(id);
-        doctor.setIsActive(false);
+        doctor.setActive(false);
         doctorRepository.save(doctor);
     }
 
@@ -110,7 +110,7 @@ public class DoctorService {
     @Transactional
     public void activate(UUID id) {
         Doctor doctor = findById(id);
-        doctor.setIsActive(true);
+        doctor.setActive(true);
         doctorRepository.save(doctor);
     }
 

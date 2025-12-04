@@ -82,7 +82,7 @@ public class PatientService {
         patient.setEmail(patientDetails.getEmail());
         patient.setLogin(patientDetails.getLogin());
         patient.setBirthDate(patientDetails.getBirthDate());
-        patient.setIsActive(patientDetails.getIsActive());
+        patient.setActive(patientDetails.isActive());
 
         return patientRepository.save(patient);
     }
@@ -96,7 +96,7 @@ public class PatientService {
     @Transactional
     public void deactivate(UUID id) {
         Patient patient = findById(id);
-        patient.setIsActive(false);
+        patient.setActive(false);
         patientRepository.save(patient);
     }
 
@@ -109,7 +109,7 @@ public class PatientService {
     @Transactional
     public void activate(UUID id) {
         Patient patient = findById(id);
-        patient.setIsActive(true);
+        patient.setActive(true);
         patientRepository.save(patient);
     }
 
