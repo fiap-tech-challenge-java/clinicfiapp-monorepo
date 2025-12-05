@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Slf4j
-public class DeadLetterQueueConsumer {
+public class DeadLetterTopicConsumer {
 
     @KafkaListener(
             topics = "appointment-events-dlt",
@@ -38,4 +38,3 @@ public class DeadLetterQueueConsumer {
         // TODO: Salvar em tabela de eventos falhados para reprocessamento manual
     }
 }
-
