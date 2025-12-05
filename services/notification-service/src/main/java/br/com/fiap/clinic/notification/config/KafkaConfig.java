@@ -66,13 +66,13 @@ public class KafkaConfig {
 
     /**
      * Configuração de ErrorHandler com Retry e Backoff Exponencial
-     * - Tenta reprocessar 3 vezes com intervalo de 2 segundos
+     * - Tenta reprocessar 3 vezes com intervalo de 2 minutos
      * - Se falhar todas as tentativas, envia para DLQ
      */
     @Bean
     public DefaultErrorHandler errorHandler(KafkaTemplate<String, AppointmentEvent> kafkaTemplate) {
-        // Backoff fixo de 2 segundos entre tentativas, máximo 3 tentativas
-        FixedBackOff fixedBackOff = new FixedBackOff(2000L, 2L); // 2 segundos, 2 retries (total 3 tentativas)
+        // Backoff fixo de 2 minutos entre tentativas, máximo 3 tentativas
+        FixedBackOff fixedBackOff = new FixedBackOff(120000L, 2L); // 2 minutos, 2 retries (total 3 tentativas)
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler((consumerRecord, exception) -> {
             // Este método é chamado quando todas as tentativas falharam
