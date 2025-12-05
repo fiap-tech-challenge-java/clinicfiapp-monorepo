@@ -5,6 +5,7 @@ import br.com.fiap.clinic.scheduler.domain.entity.OutboxEvent;
 import br.com.fiap.clinic.scheduler.domain.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,9 @@ public class OutboxRelayService {
     private static final String DEFAULT_TOPIC = KafkaConfig.TOPIC_NAME;
 
     @Scheduled(initialDelayString = "15000", fixedDelayString = "${outbox.poll.delay:5000}")
+    @SchedulerLock(name = "OutboxRelay_pollAndRelayEvents",
+            lockAtLeastFor = "2s",
+            lockAtMostFor = "30s")
     @Transactional
     public void pollAndRelayEvents() {
         log.debug("Iniciando poll para eventos do Outbox...");

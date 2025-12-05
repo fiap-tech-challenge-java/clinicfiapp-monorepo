@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AppointmentEventConsumer {
+    private String eventId;
     private String appointmentId;
     private String patientId;
     private String doctorId;
