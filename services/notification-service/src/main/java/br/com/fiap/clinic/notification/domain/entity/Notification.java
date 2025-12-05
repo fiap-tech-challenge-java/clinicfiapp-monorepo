@@ -12,7 +12,11 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications",
+       uniqueConstraints = @UniqueConstraint(
+           columnNames = {"appointment_id", "notification_type", "channel"},
+           name = "uk_notification_idempotency"
+       ))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -52,6 +56,12 @@ public class Notification {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "event_id")
+    private String eventId;
+
+    @Column(name = "last_error")
+    private String lastError;
 
     public Notification(UUID appointmentId, UUID patientId, NotificationType notificationType,
                               Channel channel, Status status, LocalDateTime scheduledFor) {
