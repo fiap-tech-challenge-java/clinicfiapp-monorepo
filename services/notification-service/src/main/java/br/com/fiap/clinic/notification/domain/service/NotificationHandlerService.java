@@ -179,9 +179,9 @@ public class NotificationHandlerService {
             log.error("❌ ERRO ao enviar notificação para {} - Tipo: {} - Tentativa {}/{} - Erro: {}",
                     event.patientEmail(), type, notification.getAttempts(), MAX_RETRY_ATTEMPTS, e.getMessage());
 
-            // Se atingiu o máximo de tentativas, lança exceção para DLQ
+            // Se atingiu o máximo de tentativas, lança exceção para DLT
             if (notification.getAttempts() >= MAX_RETRY_ATTEMPTS) {
-                log.error("🚨 Máximo de tentativas atingido. Mensagem será enviada para DLQ.");
+                log.error("🚨 Máximo de tentativas atingido. Mensagem será enviada para DLT.");
                 throw new RuntimeException("Falha após " + MAX_RETRY_ATTEMPTS + " tentativas: " + e.getMessage(), e);
             }
 

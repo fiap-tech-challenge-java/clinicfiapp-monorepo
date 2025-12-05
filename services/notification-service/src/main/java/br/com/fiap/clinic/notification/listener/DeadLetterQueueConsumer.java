@@ -9,7 +9,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 /**
- * Consumidor da Dead Letter Queue (DLQ)
+ * Consumidor da Dead Letter Topic (DLT)
  * Registra mensagens que falharam após todas as tentativas de retry
  * TODO: Armazenar em tabela separada para análise posterior
  */
@@ -18,15 +18,15 @@ import org.springframework.stereotype.Service;
 public class DeadLetterQueueConsumer {
 
     @KafkaListener(
-            topics = "appointment-events-dlq",
-            groupId = "notification-dlq-consumers",
+            topics = "appointment-events-dlt",
+            groupId = "notification-dlt-consumers",
             containerFactory = "kafkaListenerContainerFactory")
     public void handleDeadLetter(
             @Payload AppointmentEvent event,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
 
-        log.error("💀 DEAD LETTER QUEUE: Mensagem recebida na DLQ após falha em todas as tentativas");
+        log.error("💀 DEAD LETTER TOPIC: Mensagem recebida no DLT após falha em todas as tentativas");
         log.error("💀 Appointment ID: {}", event.appointmentId());
         log.error("💀 Patient: {} ({})", event.patientName(), event.patientEmail());
         log.error("💀 Doctor: {}", event.doctorName());

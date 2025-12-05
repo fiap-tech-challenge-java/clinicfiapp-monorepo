@@ -37,7 +37,7 @@ public class AppointmentEventConsumer {
         } catch (Exception e) {
             log.error("❌ Erro ao processar evento - Appointment ID: {} - Erro: {}",
                     event.appointmentId(), e.getMessage());
-            // Propaga exceção para o ErrorHandler fazer retry ou enviar para DLQ
+            // Propaga exceção para o ErrorHandler fazer retry ou enviar para DLT
             throw e;
         }
     }

@@ -67,7 +67,7 @@ public class KafkaConfig {
     /**
      * Configuração de ErrorHandler com Retry e Backoff Exponencial
      * - Tenta reprocessar 3 vezes com intervalo de 2 minutos
-     * - Se falhar todas as tentativas, envia para DLQ
+     * - Se falhar todas as tentativas, envia para DLT
      */
     @Bean
     public DefaultErrorHandler errorHandler(KafkaTemplate<String, AppointmentEvent> kafkaTemplate) {
@@ -76,16 +76,16 @@ public class KafkaConfig {
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler((consumerRecord, exception) -> {
             // Este método é chamado quando todas as tentativas falharam
-            log.error("🚨 DEAD LETTER QUEUE: Todas as tentativas falharam para o evento. " +
-                    "Enviando para DLQ. Offset: {}, Partition: {}, Error: {}",
+            log.error("🚨 DEAD LETTER TOPIC: Todas as tentativas falharam para o evento. " +
+                    "Enviando para DLT. Offset: {}, Partition: {}, Error: {}",
                     consumerRecord.offset(), consumerRecord.partition(), exception.getMessage());
 
-            // Envia para tópico DLQ
+            // Envia para tópico DLT
             try {
-                kafkaTemplate.send("appointment-events-dlq", (AppointmentEvent) consumerRecord.value());
-                log.info("✅ Mensagem enviada para DLQ com sucesso");
+                kafkaTemplate.send("appointment-events-dlt", (AppointmentEvent) consumerRecord.value());
+                log.info("✅ Mensagem enviada para DLT com sucesso");
             } catch (Exception e) {
-                log.error("❌ ERRO CRÍTICO: Falha ao enviar para DLQ: {}", e.getMessage(), e);
+                log.error("❌ ERRO CRÍTICO: Falha ao enviar para DLT: {}", e.getMessage(), e);
             }
         }, fixedBackOff);
 
