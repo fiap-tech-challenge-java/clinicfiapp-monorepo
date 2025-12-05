@@ -2,6 +2,7 @@ package br.com.fiap.clinic.history.listener;
 
 import br.com.fiap.clinic.history.config.KafkaConfig;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
+import br.com.fiap.clinic.history.domain.repository.ProcessedEventRepository;
 import br.com.fiap.clinic.history.domain.service.HistoryProjectionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +22,23 @@ import java.util.UUID;
 public class KafkaEventConsumer {
 
     private final HistoryProjectionService historyService;
+    private final ProcessedEventRepository processedEventRepository;
 
     @KafkaListener(topics = KafkaConfig.TOPIC_NAME, groupId = "history-consumers")
     public void listen(AppointmentEventConsumer event) {
         try {
+
+            if (event.getEventId() != null) {
+                UUID eventUuid = UUID.fromString(event.getEventId());
+                if (processedEventRepository.existsById(eventUuid)) {
+                    log.warn("Evento {} já foi processado anteriormente. Ignorando duplicação.", eventUuid);
+                    return;
+                }
+            } else {
+                log.warn("Evento recebido sem eventId! Processando sem garantia de idempotência.");
+            }
+
+
             log.info("Recebido evento do tópico {}: patientId={}, doctorId={}, eventType={}",
                     KafkaConfig.TOPIC_NAME, event.getPatientId(), event.getDoctorId(), event.getEventType());
 

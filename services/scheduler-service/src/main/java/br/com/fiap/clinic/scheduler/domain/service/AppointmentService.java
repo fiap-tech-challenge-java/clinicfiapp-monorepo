@@ -334,6 +334,11 @@ public class AppointmentService {
     private void createOutboxEvent(Appointment appointment, String eventType) {
         try {
             Map<String, Object> payload = new HashMap<>();
+
+            String eventId = UUID.randomUUID().toString();
+            payload.put("eventId", eventId);
+
+
             payload.put("appointmentId", appointment.getId().toString());
             payload.put("eventType", eventType);
             payload.put("timestamp", OffsetDateTime.now().toString());
