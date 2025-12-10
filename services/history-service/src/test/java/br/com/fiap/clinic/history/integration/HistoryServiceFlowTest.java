@@ -1,24 +1,21 @@
 package br.com.fiap.clinic.history.integration;
 
+import br.com.fiap.clinic.history.AbstractIntegrationTest;
 import br.com.fiap.clinic.history.config.security.CustomUserDetails;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
 import br.com.fiap.clinic.history.domain.repository.ProjectedAppointmentHistoryRepository;
 import br.com.fiap.clinic.history.domain.service.HistoryProjectionService;
 import br.com.fiap.clinic.history.exception.HistoryAccessDeniedException;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -31,17 +28,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
-@SpringBootTest
-@ActiveProfiles("test")
 @Transactional
 @DisplayName("History Service - Integration Flow Test")
-class HistoryServiceFlowTest {
+class HistoryServiceFlowTest extends AbstractIntegrationTest {
+
     @Autowired
     private HistoryProjectionService historyProjectionService;
+
     @Autowired
     private ProjectedAppointmentHistoryRepository historyRepository;
+
     private SecurityContext securityContext;
     private Authentication authentication;
+
     private UUID patientId1;
     private UUID patientId2;
     private UUID doctorId1;
@@ -112,36 +111,39 @@ class HistoryServiceFlowTest {
         SecurityContextHolder.clearContext();
     }
 
-    @Test
-    @DisplayName("Fluxo: Paciente deve visualizar apenas seu próprio histórico")
-    void patientFlowShouldViewOnlyOwnHistory() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_patient"));
-        CustomUserDetails userDetails = new CustomUserDetails(patientId1, "patient1@test.com", authorities);
+    private void setupAuthentication(UUID userId, String role) {
+        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        CustomUserDetails userDetails = new CustomUserDetails(userId, role + "@test.com", authorities);
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(authentication.getPrincipal()).thenReturn(userDetails);
         when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+    }
 
-        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(null, null, null, null, null);
+    @Test
+    @DisplayName("Fluxo: Paciente deve visualizar apenas seu próprio histórico")
+    void patientFlowShouldViewOnlyOwnHistory() {
+        setupAuthentication(patientId1, "patient");
+
+        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
+                null, null, null, null, null
+        );
 
         assertThat(result).hasSize(3);
         assertThat(result).allMatch(h -> h.getPatientId().equals(patientId1));
-        assertThat(result).extracting(ProjectedAppointmentHistory::getPatientName).containsOnly("João Silva");
+        assertThat(result).extracting(ProjectedAppointmentHistory::getPatientName)
+                .containsOnly("João Silva");
     }
 
     @Test
     @DisplayName("Fluxo: Paciente não deve ter acesso ao histórico de outro paciente")
     void patientFlowShouldNotAccessOtherPatientHistory() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_patient"));
-        CustomUserDetails userDetails = new CustomUserDetails(patientId1, "patient1@test.com", authorities);
+        setupAuthentication(patientId1, "patient");
 
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
-
-        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(null, null, null, null, null);
+        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
+                null, null, null, null, null
+        );
 
         assertThat(result).noneMatch(h -> h.getPatientId().equals(patientId2));
         assertThat(result).noneMatch(h -> h.getPatientName().equals("Maria Oliveira"));
@@ -150,15 +152,11 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico deve visualizar histórico de seus pacientes")
     void doctorFlowShouldViewOwnPatientsHistory() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
+        setupAuthentication(doctorId1, "doctor");
 
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
-
-        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(null, null, null, null, null);
+        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
+                null, null, null, null, null
+        );
 
         assertThat(result).hasSize(3);
         assertThat(result).allMatch(h -> h.getDoctorId().equals(doctorId1));
@@ -167,13 +165,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico deve filtrar histórico por paciente específico")
     void doctorFlowShouldFilterBySpecificPatient() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 patientId2.toString(), null, null, null, null
@@ -187,13 +179,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico deve filtrar histórico por nome do paciente")
     void doctorFlowShouldFilterByPatientName() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 null, "João", null, null, null
@@ -207,13 +193,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico deve filtrar histórico por data específica")
     void doctorFlowShouldFilterBySpecificDate() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 null, null, null, "2025-12-08", null
@@ -226,13 +206,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico deve filtrar histórico por status")
     void doctorFlowShouldFilterByStatus() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 null, null, null, null, "CONFIRMED"
@@ -245,13 +219,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Médico pode buscar consultas de outro médico")
     void doctorFlowCanSearchAnotherDoctorAppointments() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 null, null, doctorId2.toString(), null, null
@@ -265,15 +233,11 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Enfermeiro deve ter acesso amplo ao histórico")
     void nurseFlowShouldHaveBroadAccess() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_nurse"));
-        CustomUserDetails userDetails = new CustomUserDetails(nurseId, "nurse@test.com", authorities);
+        setupAuthentication(nurseId, "nurse");
 
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
-
-        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(null, null, null, null, null);
+        List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
+                null, null, null, null, null
+        );
 
         assertThat(result).hasSize(4);
     }
@@ -281,13 +245,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Enfermeiro deve filtrar histórico por paciente")
     void nurseFlowShouldFilterByPatient() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_nurse"));
-        CustomUserDetails userDetails = new CustomUserDetails(nurseId, "nurse@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(nurseId, "nurse");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 patientId1.toString(), null, null, null, null
@@ -300,13 +258,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Enfermeiro deve filtrar histórico por médico")
     void nurseFlowShouldFilterByDoctor() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_nurse"));
-        CustomUserDetails userDetails = new CustomUserDetails(nurseId, "nurse@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(nurseId, "nurse");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 null, null, doctorId1.toString(), null, null
@@ -319,13 +271,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Enfermeiro deve aplicar múltiplos filtros")
     void nurseFlowShouldApplyMultipleFilters() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_nurse"));
-        CustomUserDetails userDetails = new CustomUserDetails(nurseId, "nurse@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(nurseId, "nurse");
 
         List<ProjectedAppointmentHistory> result = historyProjectionService.getHistory(
                 patientId1.toString(), "João", doctorId1.toString(), null, "CONFIRMED"
@@ -381,13 +327,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Usuário com role inválida não deve ter acesso")
     void securityFlowShouldDenyInvalidRole() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_admin"));
-        CustomUserDetails userDetails = new CustomUserDetails(UUID.randomUUID(), "admin@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(UUID.randomUUID(), "admin");
 
         assertThatThrownBy(() -> historyProjectionService.getHistory(null, null, null, null, null))
                 .isInstanceOf(HistoryAccessDeniedException.class)
@@ -397,13 +337,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Validação de UUID inválido deve lançar exceção")
     void validationFlowShouldRejectInvalidUuid() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         assertThatThrownBy(() -> historyProjectionService.getHistory("invalid-uuid", null, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -413,13 +347,7 @@ class HistoryServiceFlowTest {
     @Test
     @DisplayName("Fluxo: Validação de data inválida deve lançar exceção")
     void validationFlowShouldRejectInvalidDate() {
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_doctor"));
-        CustomUserDetails userDetails = new CustomUserDetails(doctorId1, "doctor1@test.com", authorities);
-
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(authentication.getPrincipal()).thenReturn(userDetails);
-        when(authentication.getAuthorities()).thenAnswer(invocation -> authorities);
+        setupAuthentication(doctorId1, "doctor");
 
         assertThatThrownBy(() -> historyProjectionService.getHistory(null, null, null, "invalid-date", null))
                 .isInstanceOf(IllegalArgumentException.class)

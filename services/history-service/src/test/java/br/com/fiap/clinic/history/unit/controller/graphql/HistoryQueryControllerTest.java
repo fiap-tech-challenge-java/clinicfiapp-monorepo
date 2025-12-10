@@ -1,4 +1,4 @@
-package br.com.fiap.clinic.history.unit.controller;
+package br.com.fiap.clinic.history.unit.controller.graphql;
 
 import br.com.fiap.clinic.history.controller.graphql.HistoryQueryController;
 import br.com.fiap.clinic.history.domain.entity.ProjectedAppointmentHistory;
