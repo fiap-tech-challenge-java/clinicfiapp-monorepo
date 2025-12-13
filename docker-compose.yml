@@ -51,13 +51,6 @@ services:
       - kafka
       - zookeeper
 
-  cache-redis:
-    image: redis:alpine
-    container_name: clinicfiapp-redis
-    ports:
-      - "${REDIS_PORT_MAPPING:-6379:6379}"
-    restart: on-failure
-
   scheduler-service:
     build:
       context: .
