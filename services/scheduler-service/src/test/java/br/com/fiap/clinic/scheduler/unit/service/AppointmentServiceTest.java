@@ -81,6 +81,24 @@ class AppointmentServiceTest {
                 .withNano(0);
     }
 
+    /**
+     * Adiciona dias úteis a uma data, pulando fins de semana.
+     */
+    private OffsetDateTime addBusinessDays(OffsetDateTime date, int daysToAdd) {
+        OffsetDateTime result = date;
+        int addedDays = 0;
+
+        while (addedDays < daysToAdd) {
+            result = result.plusDays(1);
+            // Se for dia útil (segunda a sexta), conta
+            if (result.getDayOfWeek().getValue() < 6) {
+                addedDays++;
+            }
+        }
+
+        return result;
+    }
+
     @BeforeEach
     void setUp() {
         patientId = UUID.randomUUID();
@@ -334,7 +352,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção com horário fora do expediente - antes das 8h")
     void deveLancarExcecaoComHorarioAntesDas8h() {
         // Arrange
-        OffsetDateTime startAt = OffsetDateTime.now().plusDays(2).withHour(7).withMinute(30);
+        OffsetDateTime startAt = getNextBusinessDay().withHour(7).withMinute(30);
         OffsetDateTime endAt = startAt.plusHours(1);
 
         // Act & Assert
@@ -348,7 +366,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção com horário fora do expediente - depois das 18h")
     void deveLancarExcecaoComHorarioDepoisDas18h() {
         // Arrange
-        OffsetDateTime startAt = OffsetDateTime.now().plusDays(2).withHour(18).withMinute(0);
+        OffsetDateTime startAt = getNextBusinessDay().withHour(18).withMinute(0);
         OffsetDateTime endAt = startAt.plusHours(1);
 
         // Act & Assert
@@ -362,8 +380,9 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção com data de fim antes do início")
     void deveLancarExcecaoComDataFimAntesInicio() {
         // Arrange
-        OffsetDateTime startAt = OffsetDateTime.now().plusDays(2).withHour(11).withMinute(0);
-        OffsetDateTime endAt = OffsetDateTime.now().plusDays(2).withHour(10).withMinute(0);
+        OffsetDateTime businessDay = getNextBusinessDay();
+        OffsetDateTime startAt = businessDay.withHour(11).withMinute(0);
+        OffsetDateTime endAt = businessDay.withHour(10).withMinute(0);
 
         // Act & Assert
         assertThatThrownBy(() -> appointmentService.createAppointment(
@@ -390,7 +409,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção com duração menor que 15 minutos")
     void deveLancarExcecaoComDuracaoMenorQue15Min() {
         // Arrange
-        OffsetDateTime startAt = getNextBusinessDay().plusDays(2).withHour(10).withMinute(0);
+        OffsetDateTime startAt = addBusinessDays(getNextBusinessDay(), 2).withHour(10).withMinute(0);
         OffsetDateTime endAt = startAt.plusMinutes(10);
 
         // Act & Assert
@@ -404,7 +423,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção com duração maior que 4 horas")
     void deveLancarExcecaoComDuracaoMaiorQue4Horas() {
         // Arrange
-        OffsetDateTime startAt = OffsetDateTime.now().plusDays(2).withHour(10).withMinute(0);
+        OffsetDateTime startAt = getNextBusinessDay().withHour(10).withMinute(0);
         OffsetDateTime endAt = startAt.plusHours(5);
 
         // Act & Assert
@@ -457,7 +476,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve cancelar agendamento com sucesso")
     void deveCancelarAgendamento() throws Exception {
         // Arrange - Agendamento com mais de 24h de antecedência
-        appointment.setStartAt(OffsetDateTime.now().plusDays(3).withHour(10).withMinute(0));
+        appointment.setStartAt(getNextBusinessDay().plusDays(1).withHour(10).withMinute(0));
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(invocation -> {
             Appointment apt = invocation.getArgument(0);
@@ -491,7 +510,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve lançar exceção ao cancelar agendamento já completado")
     void deveLancarExcecaoAoCancelarAgendamentoCompletado() {
         // Arrange
-        appointment.setStartAt(OffsetDateTime.now().plusDays(3));
+        appointment.setStartAt(getNextBusinessDay().plusDays(1));
         appointment.setStatus(AppointmentStatus.COMPLETED);
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
 
@@ -543,7 +562,7 @@ class AppointmentServiceTest {
     @DisplayName("Deve reagendar agendamento com sucesso")
     void deveReagendarAgendamento() throws Exception {
         // Arrange
-        OffsetDateTime newStart = OffsetDateTime.now().plusDays(4).withHour(14).withMinute(0);
+        OffsetDateTime newStart = addBusinessDays(getNextBusinessDay(), 2).withHour(14).withMinute(0);
         OffsetDateTime newEnd = newStart.plusHours(1);
 
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
@@ -572,7 +591,7 @@ class AppointmentServiceTest {
     void deveLancarExcecaoAoReagendarAgendamentoCancelado() {
         // Arrange
         appointment.setStatus(AppointmentStatus.CANCELLED);
-        OffsetDateTime newStart = getNextBusinessDay().plusDays(2).withHour(14).withMinute(0);
+        OffsetDateTime newStart = addBusinessDays(getNextBusinessDay(), 2).withHour(14).withMinute(0);
         OffsetDateTime newEnd = newStart.plusHours(1);
 
         when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
